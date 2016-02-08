@@ -238,10 +238,10 @@
 #app .leftPanel .tabs .tab {
   color: #fff;
   background-color: #1f1f1f;
-  height: 24px;
   display: inline-block;
   text-align: center;
-  line-height: 24px;
+  line-height: 22px;
+  height: 22px;
   overflow: hidden;
   width: 75px;
   margin: 0;
@@ -255,6 +255,8 @@
   border-bottom: 1px solid #1f1f1f;
   color: #ffb81d;
   margin-bottom: -1px;
+  height: 25px;
+  line-height: 25px;
 }
 #app .leftPanel .tabs .tab:focus {
   border: 1px solid lightskyblue;
@@ -1438,10 +1440,10 @@
   height: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: #787878;
+  background: #555555;
 }
 ::-webkit-scrollbar-thumb {
-  background: #7FABB7;
+  background: #408294;
 }
 html,
 body {
@@ -1615,8 +1617,8 @@ fieldset[disabled] .btn-default.active {
 }
 .btn-primary {
   color: #fff;
-  background-color: #7FABB7;
-  border-color: #7FABB7;
+  background-color: #408294;
+  border-color: #408294;
 }
 .btn-primary:hover,
 .btn-primary:focus,
@@ -1624,8 +1626,8 @@ fieldset[disabled] .btn-default.active {
 .btn-primary.active,
 .open .dropdown-toggle.btn-primary {
   color: #fff;
-  background-color: #659aa8;
-  border-color: #5a909f;
+  background-color: #346978;
+  border-color: #2e5c69;
 }
 .btn-primary:active,
 .btn-primary.active,
@@ -1647,8 +1649,8 @@ fieldset[disabled] .btn-primary:active,
 .btn-primary.disabled.active,
 .btn-primary[disabled].active,
 fieldset[disabled] .btn-primary.active {
-  background-color: #7FABB7;
-  border-color: #7FABB7;
+  background-color: #408294;
+  border-color: #408294;
 }
 .btn-secondary {
   color: #fff;
@@ -2711,7 +2713,7 @@ input[type=range]:focus::-ms-fill-upper {
   width: 24px;
   height: 24px;
   float: right;
-  background-color: #7FABB7;
+  background-color: #408294;
 }
 #app .overlay .middle {
   width: 100%;
@@ -2874,6 +2876,10 @@ input[type=range]:focus::-ms-fill-upper {
   background-position: right center;
   padding-right: 34px;
   padding-left: 10px;
+  width: auto !important;
+  font-family: sans-serif !important;
+  background-color: #000;
+  font-size: 12px !important;
 }
 #app .overlay .top .close:link,
 #app .overlay .top .close:visited,
@@ -2973,14 +2979,14 @@ input[type=range]:focus::-ms-fill-upper {
   background-color: #bfd5db;
 }
 #app .footerPanel .searchPager .controls a.previousResult {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
   background-image: url('../../img/previous_result.png');
   padding-left: 25px;
   background-color: #fff;
   height: 20px;
   margin-top: 5px;
-  border: 1px solid #7FABB7;
+  border: 1px solid #408294;
   background-position-x: 3px;
   line-height: 18px;
 }
@@ -2988,25 +2994,25 @@ input[type=range]:focus::-ms-fill-upper {
 #app .footerPanel .searchPager .controls a.previousResult:visited,
 #app .footerPanel .searchPager .controls a.previousResult:hover,
 #app .footerPanel .searchPager .controls a.previousResult:active {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
 }
 #app .footerPanel .searchPager .controls a.nextResult {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
   background-image: url('../../img/next_result.png');
   padding-right: 25px;
   background-color: #fff;
   height: 20px;
   margin-top: 5px;
-  border: 1px solid #7FABB7;
+  border: 1px solid #408294;
   line-height: 18px;
 }
 #app .footerPanel .searchPager .controls a.nextResult:link,
 #app .footerPanel .searchPager .controls a.nextResult:visited,
 #app .footerPanel .searchPager .controls a.nextResult:hover,
 #app .footerPanel .searchPager .controls a.nextResult:active {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
 }
 #app .footerPanel .searchPager .controls .searchResultsInfo {
@@ -3014,14 +3020,14 @@ input[type=range]:focus::-ms-fill-upper {
   color: #000;
 }
 #app .footerPanel .searchPager .controls .searchResultsInfo a.clearSearch {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
 }
 #app .footerPanel .searchPager .controls .searchResultsInfo a.clearSearch:link,
 #app .footerPanel .searchPager .controls .searchResultsInfo a.clearSearch:visited,
 #app .footerPanel .searchPager .controls .searchResultsInfo a.clearSearch:hover,
 #app .footerPanel .searchPager .controls .searchResultsInfo a.clearSearch:active {
-  color: #7FABB7;
+  color: #408294;
   text-decoration: none;
 }
 #app .footerPanel .search {
@@ -3073,7 +3079,7 @@ input[type=range]:focus::-ms-fill-upper {
   background-position: 0 1px;
   background-repeat: no-repeat;
   padding: 0 5px 5px 15px;
-  color: #7FABB7;
+  color: #408294;
 }
 #app .footerPanel .searchOptions {
   margin: 3px 0 0 0;
