@@ -136,13 +136,24 @@
   padding: 0 0 30px 8px;
 }
 #app .overlay.download .middle .noneAvailable {
-  padding: 10px 0 0 0;
+  padding: 10px 0 10px 0;
 }
 #app .overlay.download .middle .pagingNote {
   padding: 10px 0 0 0;
 }
 #app .overlay.download .middle ol.options {
-  padding: 10px 0 0 0;
+  padding: 0;
+}
+#app .overlay.download .middle ol.options li.group {
+  border-bottom: 1px solid #ffffff;
+}
+#app .overlay.download .middle ol.options li.group:last-child {
+  border-bottom: none;
+}
+#app .overlay.download .middle ol.options li.group ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
 }
 #app .overlay.help {
   width: 470px;
@@ -224,6 +235,13 @@
 #app .overlay.login .message h1 {
   border-bottom: none !important;
   font-size: 12px !important;
+}
+#app .overlay.login .message .warning {
+  display: block;
+  background-color: #FFB81D;
+  font-weight: bold;
+  padding: 10px 10px 10px 10px;
+  margin-bottom: 10px;
 }
 #app .overlay.login .bottom {
   background: none;
@@ -552,20 +570,34 @@
 }
 #app .leftPanel .tabsContent .options {
   overflow: hidden;
+  padding: 0 0 10px 0;
 }
-#app .leftPanel .tabsContent .options .treeView {
-  height: 30px;
+#app .leftPanel .tabsContent .options .left {
+  float: left;
 }
-#app .leftPanel .tabsContent .options .treeView span {
+#app .leftPanel .tabsContent .options .left .treeView {
+  padding: 5px 0 0 0;
+}
+#app .leftPanel .tabsContent .options .left .treeView span {
   display: block;
   float: left;
   color: #fff;
-  padding: 5px 4px 0 10px;
+  padding: 5px 4px 0 0;
   font-size: 11px;
 }
-#app .leftPanel .tabsContent .options .treeView select {
+#app .leftPanel .tabsContent .options .left .treeView select {
   float: left;
   font-size: 11px;
+}
+#app .leftPanel .tabsContent .options .right {
+  float: right;
+  overflow: hidden;
+}
+#app .leftPanel .tabsContent .options .right .multiSelect .multiSelectAll {
+  float: left;
+}
+#app .leftPanel .tabsContent .options .right .multiSelect .btn {
+  margin-left: 10px;
 }
 #app .leftPanel .tabsContent .btn-group .btn {
   padding: 0 5px 0 5px;
@@ -590,10 +622,13 @@
   float: left;
   height: 10px;
   width: 10px;
-  background-image: url('../../img/uv-treeviewleftpanel-module/plus.png');
+  background-image: url('../../img/uv-contentleftpanel-module/plus.png');
 }
 #app .leftPanel .views .treeView .toggle.expanded {
-  background-image: url('../../img/uv-treeviewleftpanel-module/minus.png');
+  background-image: url('../../img/uv-contentleftpanel-module/minus.png');
+}
+#app .leftPanel .views .treeView .toggle.multiSelect {
+  margin-left: 5px;
 }
 #app .leftPanel .views .treeView .spacer {
   margin-top: 3px;
@@ -602,6 +637,14 @@
   float: left;
   height: 10px;
   width: 10px;
+}
+#app .leftPanel .views .treeView input.multiSelect {
+  margin-top: 0px;
+  margin-right: 5px;
+  display: block;
+  float: left;
+  height: 13px;
+  width: 13px;
 }
 #app .leftPanel .views .treeView ul.tree,
 #app .leftPanel .views .treeView ul.tree ul {
@@ -648,10 +691,10 @@
   background-position: 50% 50%;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb .wrap.loadingFailed {
-  background: url('../../img/uv-treeviewleftpanel-module/error.png') no-repeat 50% 50%;
+  background: url('../../img/uv-contentleftpanel-module/error.png') no-repeat 50% 50%;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb .wrap.hidden {
-  background: url('../../img/uv-treeviewleftpanel-module/hidden_thumb.png') no-repeat 50% 50%;
+  background: url('../../img/uv-contentleftpanel-module/hidden_thumb.png') no-repeat 50% 50%;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb .wrap img {
   display: block;
@@ -676,7 +719,7 @@
   white-space: nowrap;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb.placeholder .wrap {
-  background: url('../../img/uv-treeviewleftpanel-module/unavailable.png') no-repeat 50% 50%;
+  background: url('../../img/uv-contentleftpanel-module/unavailable.png') no-repeat 50% 50%;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb.oneCol {
   margin: 0 0 7px 0;
@@ -751,18 +794,32 @@
   text-align: center;
   background: none;
 }
+#app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.multiSelected {
+  border: 2px solid #408294;
+  background: #408294;
+}
+#app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.multiSelected .thumbImage {
+  opacity: 0.35;
+  filter: alpha(opacity=35);
+}
 #app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.loading {
   background-image: url('data:image/gif;base64,R0lGODlhEAAQAPIAAAAAAP///zw8PLy8vP///5ycnHx8fGxsbCH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wCRHZnFVdmgHu2nFwlWCI3WGc3TSWhUFGxTAUkGCbtgENBMJAEJsxgMLWzpEAACH5BAkKAAAALAAAAAAQABAAAAMyCLrc/jDKSatlQtScKdceCAjDII7HcQ4EMTCpyrCuUBjCYRgHVtqlAiB1YhiCnlsRkAAAOwAAAAAAAAAAAA==');
   background-repeat: no-repeat;
   background-position: 50% 50%;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.hidden {
-  background: url('../../img/uv-treeviewleftpanel-module/hidden_thumb.png') no-repeat 50% 50%;
+  background: url('../../img/uv-contentleftpanel-module/hidden_thumb.png') no-repeat 50% 50%;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb .wrap img {
   display: block;
+  float: left;
   max-width: 100%;
   max-height: 100%;
+}
+#app .leftPanel .views .galleryView .main .thumbs .thumb .wrap input {
+  float: left;
+  cursor: pointer;
+  margin-top: -20px;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb.selected .wrap {
   border: 2px solid #fff;
@@ -782,7 +839,7 @@
   white-space: nowrap;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb.placeholder .wrap {
-  background: url('../../img/uv-treeviewleftpanel-module/unavailable.png') no-repeat 50% 50%;
+  background: url('../../img/uv-contentleftpanel-module/unavailable.png') no-repeat 50% 50%;
 }
 #app .leftPanel .views .galleryView .main .thumbs.left-to-right .thumb {
   float: left;
@@ -2183,6 +2240,26 @@ input[type=range]:focus::-ms-fill-upper {
   color: #fff;
   text-decoration: none;
 }
+#app .footerPanel .options a.feedback {
+  background-image: url('../../img/uv-shared-module/feedback.png');
+  background-repeat: no-repeat;
+  height: 21px;
+  line-height: 21px;
+  cursor: pointer;
+  color: #fff;
+  text-decoration: none;
+  background-position: left center;
+  padding-left: 30px;
+  padding-right: 10px;
+  line-height: 22px;
+}
+#app .footerPanel .options a.feedback:link,
+#app .footerPanel .options a.feedback:visited,
+#app .footerPanel .options a.feedback:hover,
+#app .footerPanel .options a.feedback:active {
+  color: #fff;
+  text-decoration: none;
+}
 #app .footerPanel .options a.fullScreen {
   background-image: url('../../img/uv-shared-module/fullscreen.png');
   background-repeat: no-repeat;
@@ -2255,6 +2332,17 @@ input[type=range]:focus::-ms-fill-upper {
   padding: 0;
 }
 #app .footerPanel .options.minimiseButtons a.bookmark {
+  font: 0/0 a;
+  text-shadow: none;
+  background-color: transparent;
+  border: 0;
+  line-height: 0;
+  font-size: 0;
+  color: transparent;
+  width: 27px;
+  padding: 0;
+}
+#app .footerPanel .options.minimiseButtons a.feedback {
   font: 0/0 a;
   text-shadow: none;
   background-color: transparent;

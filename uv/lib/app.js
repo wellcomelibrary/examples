@@ -4,6 +4,7 @@ define('modules/uv-shared-module/BaseCommands',["require", "exports"], function 
         }
         Commands.namespace = 'uv.';
         Commands.ACCEPT_TERMS = Commands.namespace + 'onAcceptTerms';
+        Commands.AUTHORIZATION_FAILED = Commands.namespace + 'onAuthorizationFailed';
         Commands.AUTHORIZATION_OCCURRED = Commands.namespace + 'onAuthorizationOccurred';
         Commands.BOOKMARK = Commands.namespace + 'onBookmark';
         Commands.CANVAS_INDEX_CHANGE_FAILED = Commands.namespace + 'onCanvasIndexChangeFailed';
@@ -19,6 +20,7 @@ define('modules/uv-shared-module/BaseCommands',["require", "exports"], function 
         Commands.END = Commands.namespace + 'onEnd';
         Commands.ESCAPE = Commands.namespace + 'onEscape';
         Commands.EXTERNAL_LINK_CLICKED = Commands.namespace + 'onExternalLinkClicked';
+        Commands.FEEDBACK = Commands.namespace + 'onFeedback';
         Commands.PARENT_EXIT_FULLSCREEN = Commands.namespace + 'onParentExitFullScreen';
         Commands.HIDE_CLICKTHROUGH_DIALOGUE = Commands.namespace + 'onHideClickthroughDialogue';
         Commands.HIDE_DOWNLOAD_DIALOGUE = Commands.namespace + 'onHideDownloadDialogue';
@@ -303,21 +305,25 @@ define('Bootstrapper',["require", "exports", "./modules/uv-shared-module/BaseCom
             });
         };
         Bootstrapper.prototype.configure = function (extension, cb) {
+            var _this = this;
             var that = this;
             this.getConfigExtension(extension, function (configExtension) {
                 // todo: use a compiler flag when available
                 var configPath = (window.DEBUG) ? 'extensions/' + extension.name + '/build/' + that.params.getLocaleName() + '.config.json' : 'lib/' + extension.name + '.' + that.params.getLocaleName() + '.config.json';
                 $.getJSON(configPath, function (config) {
-                    config.name = extension.name;
-                    // if data-config has been set, extend the existing config object.
-                    if (configExtension) {
-                        // save a reference to the config extension uri.
-                        config.uri = that.params.config;
-                        $.extend(true, config, configExtension);
-                    }
-                    cb(config);
+                    _this.extendConfig(extension, config, configExtension, cb);
                 });
             });
+        };
+        Bootstrapper.prototype.extendConfig = function (extension, config, configExtension, cb) {
+            config.name = extension.name;
+            // if data-config has been set, extend the existing config object.
+            if (configExtension) {
+                // save a reference to the config extension uri.
+                config.uri = this.params.config;
+                $.extend(true, config, configExtension);
+            }
+            cb(config);
         };
         Bootstrapper.prototype.getConfigExtension = function (extension, cb) {
             var sessionConfig = sessionStorage.getItem(extension.name + '.' + this.params.localeName);
@@ -325,9 +331,25 @@ define('Bootstrapper',["require", "exports", "./modules/uv-shared-module/BaseCom
                 cb(JSON.parse(sessionConfig));
             }
             else if (this.params.config) {
-                $.getJSON(this.params.config, function (configExtension) {
-                    cb(configExtension);
-                });
+                if (this.isCORSEnabled()) {
+                    $.getJSON(this.params.config, function (configExtension) {
+                        cb(configExtension);
+                    });
+                }
+                else {
+                    // use jsonp
+                    var settings = {
+                        url: this.params.config,
+                        type: 'GET',
+                        dataType: 'jsonp',
+                        jsonp: 'callback',
+                        jsonpCallback: 'configExtensionCallback'
+                    };
+                    $.ajax(settings);
+                    window.configExtensionCallback = function (configExtension) {
+                        cb(configExtension);
+                    };
+                }
             }
             else {
                 cb(null);
@@ -613,6 +635,7 @@ define('modules/uv-shared-module/ExternalResource',["require", "exports"], funct
             this.isResponseHandled = false;
             this.dataUri = dataUriFunc(resource);
             this._parseAuthServices(resource);
+            //this.profile = (<Manifesto.IService>resource).getProfile();
         }
         ExternalResource.prototype._parseAuthServices = function (resource) {
             this.clickThroughService = manifesto.getService(resource, manifesto.ServiceProfile.clickThrough().toString());
@@ -738,9 +761,10 @@ define('modules/uv-dialogues-module/LoginDialogue',["require", "exports", "../uv
             _super.prototype.create.call(this);
             this.openCommand = BaseCommands.SHOW_LOGIN_DIALOGUE;
             this.closeCommand = BaseCommands.HIDE_LOGIN_DIALOGUE;
-            $.subscribe(this.openCommand, function (e, params) {
-                _this.acceptCallback = params.acceptCallback;
-                _this.resource = params.resource;
+            $.subscribe(this.openCommand, function (s, e) {
+                _this.acceptCallback = e.acceptCallback;
+                _this.options = e.options;
+                _this.resource = e.resource;
                 _this.open();
             });
             $.subscribe(this.closeCommand, function (e) {
@@ -753,11 +777,14 @@ define('modules/uv-dialogues-module/LoginDialogue',["require", "exports", "../uv
                 <p class="message scroll"></p>\
                 <div class="buttons">\
                     <a class="login btn btn-primary" href="#" target="_parent"></a>\
+                    <a class="cancel btn btn-primary" href="#"></a>\
                 </div>\
             </div>');
             this.$message = this.$content.find('.message');
             this.$loginButton = this.$content.find('.login');
             this.$loginButton.text(this.content.login);
+            this.$cancelButton = this.$content.find('.cancel');
+            this.$cancelButton.text(this.content.cancel);
             this.$element.hide();
             this.$loginButton.on('click', function (e) {
                 e.preventDefault();
@@ -765,16 +792,30 @@ define('modules/uv-dialogues-module/LoginDialogue',["require", "exports", "../uv
                 if (_this.acceptCallback)
                     _this.acceptCallback();
             });
+            this.$cancelButton.on('click', function (e) {
+                e.preventDefault();
+                _this.close();
+            });
         };
         LoginDialogue.prototype.open = function () {
             _super.prototype.open.call(this);
             this.$title.text(this.resource.loginService.getProperty('label'));
-            this.$message.html(this.resource.loginService.getProperty('description'));
+            var message = this.resource.loginService.getProperty('description');
+            if (this.options.warningMessage) {
+                message = '<span class="warning">' + this.provider.config.content[this.options.warningMessage] + '</span><span class="description">' + message + '</span>';
+            }
+            this.$message.html(message);
             this.$message.targetBlank();
             this.$message.find('a').on('click', function () {
                 var url = $(this).attr('href');
                 $.publish(BaseCommands.EXTERNAL_LINK_CLICKED, [url]);
             });
+            if (this.options.showCancelButton) {
+                this.$cancelButton.show();
+            }
+            else {
+                this.$cancelButton.hide();
+            }
             this.resize();
         };
         LoginDialogue.prototype.resize = function () {
@@ -907,7 +948,17 @@ define('modules/uv-shared-module/Shell',["require", "exports", "./BaseCommands",
     return Shell;
 });
 
-define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCommands", "../../BootstrapParams", "../../modules/uv-dialogues-module/ClickThroughDialogue", "./ExternalResource", "./InformationArgs", "./InformationType", "../../modules/uv-dialogues-module/LoginDialogue", "../../Params", "./Shell"], function (require, exports, BaseCommands, BootstrapParams, ClickThroughDialogue, ExternalResource, InformationArgs, InformationType, LoginDialogue, Params, Shell) {
+define('modules/uv-shared-module/LoginWarningMessages',["require", "exports"], function (require, exports) {
+    var LoginWarningMessages = (function () {
+        function LoginWarningMessages() {
+        }
+        LoginWarningMessages.FORBIDDEN = "forbiddenResourceMessage";
+        return LoginWarningMessages;
+    })();
+    return LoginWarningMessages;
+});
+
+define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCommands", "../../BootstrapParams", "../../modules/uv-dialogues-module/ClickThroughDialogue", "./ExternalResource", "./InformationArgs", "./InformationType", "../../modules/uv-dialogues-module/LoginDialogue", "../../Params", "./Shell", "./LoginWarningMessages"], function (require, exports, BaseCommands, BootstrapParams, ClickThroughDialogue, ExternalResource, InformationArgs, InformationType, LoginDialogue, Params, Shell, LoginWarningMessages) {
     var BaseExtension = (function () {
         function BaseExtension(bootstrapper) {
             this.shifted = false;
@@ -1031,6 +1082,10 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
             $.subscribe(BaseCommands.ACCEPT_TERMS, function () {
                 _this.triggerSocket(BaseCommands.ACCEPT_TERMS);
             });
+            $.subscribe(BaseCommands.AUTHORIZATION_FAILED, function () {
+                _this.triggerSocket(BaseCommands.AUTHORIZATION_FAILED);
+                _this.showMessage(_this.provider.config.content.authorisationFailedMessage);
+            });
             $.subscribe(BaseCommands.AUTHORIZATION_OCCURRED, function () {
                 _this.triggerSocket(BaseCommands.AUTHORIZATION_OCCURRED);
             });
@@ -1074,6 +1129,9 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
                 if (_this.isFullScreen() && !_this.isOverlayActive()) {
                     $.publish(BaseCommands.TOGGLE_FULLSCREEN);
                 }
+            });
+            $.subscribe(BaseCommands.FEEDBACK, function () {
+                _this.feedback();
             });
             $.subscribe(BaseCommands.HIDE_DOWNLOAD_DIALOGUE, function () {
                 _this.triggerSocket(BaseCommands.HIDE_DOWNLOAD_DIALOGUE);
@@ -1381,14 +1439,21 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
                     resourcesToLoad.push(r);
                 }
             });
+            var storageStrategy = this.provider.config.options.tokenStorage;
             return new Promise(function (resolve) {
-                manifesto.loadExternalResources(resourcesToLoad, _this.clickThrough, _this.login, _this.getAccessToken, _this.storeAccessToken, _this.getStoredAccessToken, _this.handleExternalResourceResponse).then(function (r) {
+                manifesto.loadExternalResources(resourcesToLoad, storageStrategy, _this.clickThrough, _this.login, _this.getAccessToken, _this.storeAccessToken, _this.getStoredAccessToken, _this.handleExternalResourceResponse).then(function (r) {
                     _this.provider.resources = _.map(r, function (resource) {
                         return _.toPlainObject(resource.data);
                     });
                     resolve(_this.provider.resources);
-                })['catch'](function (errorMessage) {
-                    _this.showMessage(errorMessage);
+                })['catch'](function (error) {
+                    if (error.name === HTTPStatusCode.SERVICE_UNAVAILABLE.toString()) {
+                        // show friendly error
+                        $.publish(BaseCommands.AUTHORIZATION_FAILED);
+                    }
+                    else {
+                        _this.showMessage(error.message || error);
+                    }
                 });
             });
         };
@@ -1449,12 +1514,27 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
             p.canvasIndex = 0;
             this.provider.reload(p);
         };
+        BaseExtension.prototype.viewCollection = function (collection) {
+            var p = new BootstrapParams();
+            p.manifestUri = this.provider.manifestUri;
+            p.collectionIndex = collection.index;
+            p.manifestIndex = 0;
+            p.sequenceIndex = 0;
+            p.canvasIndex = 0;
+            this.provider.reload(p);
+        };
         BaseExtension.prototype.isFullScreen = function () {
             return this.bootstrapper.isFullScreen;
         };
         BaseExtension.prototype.isLeftPanelEnabled = function () {
-            return Utils.Bools.GetBool(this.provider.config.options.leftPanelEnabled, true)
-                && this.provider.isMultiCanvas();
+            if (Utils.Bools.GetBool(this.provider.config.options.leftPanelEnabled, true)) {
+                if (this.provider.isMultiCanvas()) {
+                    if (this.provider.getViewingHint().toString() !== manifesto.ViewingHint.continuous().toString()) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         };
         BaseExtension.prototype.isRightPanelEnabled = function () {
             return Utils.Bools.GetBool(this.provider.config.options.rightPanelEnabled, true);
@@ -1464,6 +1544,9 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
         };
         BaseExtension.prototype.bookmark = function () {
             // override for each extension
+        };
+        BaseExtension.prototype.feedback = function () {
+            this.triggerSocket(BaseCommands.FEEDBACK, new BootstrapParams());
         };
         BaseExtension.prototype.getBookmarkUri = function () {
             var absUri = parent.document.URL;
@@ -1494,6 +1577,11 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
         };
         BaseExtension.prototype.login = function (resource) {
             return new Promise(function (resolve) {
+                var options = {};
+                if (resource.status === HTTPStatusCode.FORBIDDEN) {
+                    options.warningMessage = LoginWarningMessages.FORBIDDEN;
+                    options.showCancelButton = true;
+                }
                 $.publish(BaseCommands.SHOW_LOGIN_DIALOGUE, [{
                         resource: resource,
                         acceptCallback: function () {
@@ -1505,7 +1593,8 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
                                     resolve();
                                 }
                             }, 500);
-                        }
+                        },
+                        options: options
                     }]);
             });
         };
@@ -1523,30 +1612,38 @@ define('modules/uv-shared-module/BaseExtension',["require", "exports", "./BaseCo
                 });
             });
         };
-        BaseExtension.prototype.storeAccessToken = function (resource, token) {
+        BaseExtension.prototype.storeAccessToken = function (resource, token, storageStrategy) {
             return new Promise(function (resolve, reject) {
-                Utils.Storage.set(resource.tokenService.id, token, token.expiresIn);
+                Utils.Storage.set(resource.tokenService.id, token, token.expiresIn, new Utils.StorageType(storageStrategy));
                 resolve();
             });
         };
-        BaseExtension.prototype.getStoredAccessToken = function (resource) {
+        BaseExtension.prototype.getStoredAccessToken = function (resource, storageStrategy) {
             return new Promise(function (resolve, reject) {
-                var foundToken;
+                var foundItems = [];
                 // first try an exact match of the url
-                var item = Utils.Storage.get(resource.dataUri);
+                var item = Utils.Storage.get(resource.dataUri, new Utils.StorageType(storageStrategy));
                 if (item) {
-                    foundToken = item.value;
+                    foundItems.push(item);
                 }
                 else {
                     // find an access token for the domain
                     var domain = Utils.Urls.GetUrlParts(resource.dataUri).hostname;
-                    var items = Utils.Storage.getItems();
+                    var items = Utils.Storage.getItems(new Utils.StorageType(storageStrategy));
                     for (var i = 0; i < items.length; i++) {
                         item = items[i];
                         if (item.key.contains(domain)) {
-                            foundToken = item.value;
+                            foundItems.push(item);
                         }
                     }
+                }
+                // sort by expiresAt
+                foundItems = _.sortBy(foundItems, function (item) {
+                    return item.expiresAt;
+                });
+                var foundToken;
+                if (foundItems.length) {
+                    foundToken = foundItems.last().value;
                 }
                 resolve(foundToken);
             });
@@ -1710,6 +1807,7 @@ define('modules/uv-shared-module/DownloadOption',["require", "exports"], functio
         DownloadOption.dynamicImageRenderings = new DownloadOption("dynamicImageRenderings");
         DownloadOption.dynamicSequenceRenderings = new DownloadOption("dynamicSequenceRenderings");
         DownloadOption.entireFileAsOriginal = new DownloadOption("entireFileAsOriginal");
+        DownloadOption.selection = new DownloadOption("selection");
         DownloadOption.wholeImageHighRes = new DownloadOption("wholeImageHighRes");
         DownloadOption.wholeImageLowResAsJpg = new DownloadOption("wholeImageLowResAsJpg");
         return DownloadOption;
@@ -2003,6 +2101,8 @@ define('modules/uv-shared-module/FooterPanel',["require", "exports", "./BaseComm
             });
             this.$options = $('<div class="options"></div>');
             this.$element.append(this.$options);
+            this.$feedbackButton = $('<a class="feedback" title="' + this.content.feedback + '">' + this.content.feedback + '</a>');
+            this.$options.prepend(this.$feedbackButton);
             this.$openButton = $('<a class="open" title="' + this.content.open + '">' + this.content.open + '</a>');
             this.$options.prepend(this.$openButton);
             this.$bookmarkButton = $('<a class="bookmark" title="' + this.content.bookmark + '">' + this.content.bookmark + '</a>');
@@ -2017,6 +2117,9 @@ define('modules/uv-shared-module/FooterPanel',["require", "exports", "./BaseComm
             this.$fullScreenBtn.attr('tabindex', '5');
             this.$openButton.onPressed(function () {
                 $.publish(BaseCommands.OPEN);
+            });
+            this.$feedbackButton.onPressed(function () {
+                $.publish(BaseCommands.FEEDBACK);
             });
             this.$bookmarkButton.onPressed(function () {
                 $.publish(BaseCommands.BOOKMARK);
@@ -2036,6 +2139,7 @@ define('modules/uv-shared-module/FooterPanel',["require", "exports", "./BaseComm
                 this.$embedButton.hide();
             }
             this.updateOpenButton();
+            this.updateFeedbackButton();
             this.updateBookmarkButton();
             this.updateDownloadButton();
             this.updateFullScreenButton();
@@ -2077,6 +2181,15 @@ define('modules/uv-shared-module/FooterPanel',["require", "exports", "./BaseComm
             }
             else {
                 this.$downloadButton.hide();
+            }
+        };
+        FooterPanel.prototype.updateFeedbackButton = function () {
+            var configEnabled = Utils.Bools.GetBool(this.options.feedbackEnabled, false);
+            if (configEnabled) {
+                this.$feedbackButton.show();
+            }
+            else {
+                this.$feedbackButton.hide();
             }
         };
         FooterPanel.prototype.updateBookmarkButton = function () {
@@ -2687,6 +2800,10 @@ define('modules/uv-shared-module/BaseExpandPanel',["require", "exports", "./Base
         BaseExpandPanel.prototype.init = function () {
             _super.prototype.init.call(this);
         };
+        BaseExpandPanel.prototype.setTitle = function (title) {
+            this.$title.text(title);
+            this.$closedTitle.text(title);
+        };
         BaseExpandPanel.prototype.toggle = function (autoToggled) {
             var _this = this;
             (autoToggled) ? this.autoToggled = true : this.autoToggled = false;
@@ -2873,8 +2990,7 @@ define('modules/uv-moreinforightpanel-module/MoreInfoRightPanel',["require", "ex
             this.$main.append(this.$noData);
             this.$expandButton.attr('tabindex', '4');
             this.$collapseButton.attr('tabindex', '4');
-            this.$title.text(this.content.title);
-            this.$closedTitle.text(this.content.title);
+            this.setTitle(this.content.title);
         };
         MoreInfoRightPanel.prototype.toggleFinish = function () {
             _super.prototype.toggleFinish.call(this);
@@ -3004,7 +3120,7 @@ define('modules/uv-moreinforightpanel-module/MoreInfoRightPanel',["require", "ex
 });
 
 define('_Version',["require", "exports"], function (require, exports) {
-    exports.Version = '1.6.14';
+    exports.Version = '1.7.3';
 });
 
 var __extends = (this && this.__extends) || function (d, b) {
@@ -3113,11 +3229,15 @@ define('extensions/uv-seadragon-extension/Commands',["require", "exports"], func
         Commands.DOWNLOAD_ENTIREDOCUMENTASTEXT = Commands.namespace + 'onDownloadEntireDocumentAsText';
         Commands.DOWNLOAD_WHOLEIMAGEHIGHRES = Commands.namespace + 'onDownloadWholeImageHighRes';
         Commands.DOWNLOAD_WHOLEIMAGELOWRES = Commands.namespace + 'onDownloadWholeImageLowRes';
+        Commands.ENTER_MULTISELECT_MODE = Commands.namespace + 'onEnterMultiSelectMode';
+        Commands.EXIT_MULTISELECT_MODE = Commands.namespace + 'onExitMultiSelectMode';
         Commands.FIRST = Commands.namespace + 'onFirst';
         Commands.GALLERY_THUMB_SELECTED = Commands.namespace + 'onGalleryThumbSelected';
         Commands.IMAGE_SEARCH = Commands.namespace + 'onImageSearch';
         Commands.LAST = Commands.namespace + 'onLast';
         Commands.MODE_CHANGED = Commands.namespace + 'onModeChanged';
+        Commands.MULTISELECTION_MADE = Commands.namespace + 'onMultiSelectionMade';
+        Commands.MULTISELECT_CHANGE = Commands.namespace + 'onMultiSelectChange';
         Commands.NEXT = Commands.namespace + 'onNext';
         Commands.NEXT_SEARCH_RESULT = Commands.namespace + 'onNextSearchResult';
         Commands.OPEN_THUMBS_VIEW = Commands.namespace + 'onOpenThumbsView';
@@ -3136,6 +3256,8 @@ define('extensions/uv-seadragon-extension/Commands',["require", "exports"], func
         Commands.SEARCH_PREVIEW_START = Commands.namespace + 'onSearchPreviewStart';
         Commands.SEARCH_RESULTS = Commands.namespace + 'onSearchResults';
         Commands.SEARCH_RESULTS_EMPTY = Commands.namespace + 'onSearchResultsEmpty';
+        Commands.THUMB_MULTISELECTED = Commands.namespace + 'onThumbMultiSelected';
+        Commands.TREE_NODE_MULTISELECTED = Commands.namespace + 'onTreeNodeMultiSelected';
         Commands.TREE_NODE_SELECTED = Commands.namespace + 'onTreeNodeSelected';
         Commands.VIEW_PAGE = Commands.namespace + 'onViewPage';
         return Commands;
@@ -3163,7 +3285,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", "../uv-shared-module/BaseCommands", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands", "../../extensions/uv-seadragon-extension/Mode"], function (require, exports, BaseCommands, BaseView, Commands, Mode) {
+define('modules/uv-contentleftpanel-module/GalleryView',["require", "exports", "../uv-shared-module/BaseCommands", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands", "../../extensions/uv-seadragon-extension/Mode"], function (require, exports, BaseCommands, BaseView, Commands, Mode) {
     var GalleryView = (function (_super) {
         __extends(GalleryView, _super);
         function GalleryView($element) {
@@ -3172,7 +3294,7 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
         }
         GalleryView.prototype.create = function () {
             var _this = this;
-            this.setConfig('treeViewLeftPanel');
+            this.setConfig('contentLeftPanel');
             _super.prototype.create.call(this);
             $.subscribe(BaseCommands.CANVAS_INDEX_CHANGED, function (e, index) {
                 _this.selectIndex(parseInt(index));
@@ -3186,11 +3308,21 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
             $.subscribe(Commands.SEARCH_PREVIEW_FINISH, function () {
                 _this.searchPreviewFinish();
             });
+            $.subscribe(Commands.ENTER_MULTISELECT_MODE, function () {
+                _this.dataBind();
+                _this.resize();
+            });
+            $.subscribe(Commands.EXIT_MULTISELECT_MODE, function () {
+                _this.dataBind();
+            });
+            $.subscribe(Commands.MULTISELECT_CHANGE, function (s, state) {
+                _this._multiSelectStateChange(state);
+            });
             this.$header = $('<div class="header"></div>');
             this.$element.append(this.$header);
             this.$sizeDownButton = $('<input class="btn btn-default size-down" type="button" value="-" />');
             this.$header.append(this.$sizeDownButton);
-            this.$sizeRange = $('<input type="range" name="size" min="0" max="10" value="5" />');
+            this.$sizeRange = $('<input type="range" name="size" min="1" max="10" value="6" />');
             this.$header.append(this.$sizeRange);
             this.$sizeUpButton = $('<input class="btn btn-default size-up" type="button" value="+" />');
             this.$header.append(this.$sizeUpButton);
@@ -3218,11 +3350,16 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
                 _this.scrollToThumb(_this.getSelectedThumbIndex());
             });
             $.templates({
-                galleryThumbsTemplate: '<div class="{{:~className()}}" data-src="{{>uri}}" data-index="{{>index}}" data-visible="{{>visible}}" data-width="{{>width}}" data-height="{{>height}}">\
-                                        <div class="wrap"></div>\
-                                        <span class="index">{{:#index + 1}}</span>\
-                                        <span class="label" title="{{>label}}">{{>label}}&nbsp;</span>\
-                                     </div>'
+                galleryThumbsTemplate: '\
+                <div class="{{:~className()}}" data-src="{{>uri}}" data-index="{{>index}}" data-visible="{{>visible}}" data-width="{{>width}}" data-height="{{>height}}">\
+                    <div class="wrap" data-link="class{merge:multiSelected toggle=\'multiSelected\'}">\
+                    {^{if multiSelectionEnabled}}\
+                        <input id="thumb-checkbox-{{>id}}" type="checkbox" data-link="checked{:multiSelected ? \'checked\' : \'\'}" class="multiSelect" />\
+                    {{/if}}\
+                    </div>\
+                    <span class="index">{{:#index + 1}}</span>\
+                    <span class="label" title="{{>label}}">{{>label}}&nbsp;</span>\
+                </div>'
             });
             $.views.helpers({
                 className: function () {
@@ -3248,6 +3385,7 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
         GalleryView.prototype.dataBind = function () {
             if (!this.thumbs)
                 return;
+            this._reset();
             this.createThumbs();
         };
         GalleryView.prototype.createThumbs = function () {
@@ -3255,15 +3393,63 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
             if (!this.thumbs)
                 return;
             this.$thumbs.link($.templates.galleryThumbsTemplate, this.thumbs);
-            this.$thumbs.delegate(".thumb", "click", function (e) {
-                e.preventDefault();
-                var data = $.view(this).data;
-                that.lastThumbClickedIndex = data.index;
-                $.publish(BaseCommands.THUMB_SELECTED, [data.index]);
-            });
+            if (!that.multiSelectState.enabled) {
+                // add a selection click event to all thumbs
+                this.$thumbs.delegate('.thumb', 'click', function (e) {
+                    e.preventDefault();
+                    var data = $.view(this).data;
+                    that.lastThumbClickedIndex = data.index;
+                    $.publish(BaseCommands.THUMB_SELECTED, [data.index]);
+                });
+            }
+            else {
+                // make each thumb a checkboxButton
+                $.each(this.$thumbs.find('.thumb'), function (index, thumb) {
+                    var $thumb = $(thumb);
+                    $thumb.checkboxButton(function (checked) {
+                        var data = $.view(this).data;
+                        that._setThumbMultiSelected(data, !data.multiSelected);
+                        $.publish(Commands.THUMB_MULTISELECTED, [data]);
+                    });
+                });
+            }
             this.selectIndex(this.provider.canvasIndex);
             this.setLabel();
             this.updateThumbs();
+        };
+        GalleryView.prototype._getThumbsByRange = function (range) {
+            var thumbs = [];
+            for (var i = 0; i < this.thumbs.length; i++) {
+                var thumb = this.thumbs[i];
+                var canvas = thumb.data;
+                var r = this.provider.getCanvasRange(canvas);
+                if (r && r.id === range.id) {
+                    thumbs.push(thumb);
+                }
+            }
+            return thumbs;
+        };
+        GalleryView.prototype._multiSelectStateChange = function (state) {
+            for (var j = 0; j < state.canvases.length; j++) {
+                var canvas = state.canvases[j];
+                var thumb = this._getThumbByCanvas(canvas);
+                this._setThumbMultiSelected(thumb, canvas.multiSelected);
+            }
+            // range selections override canvas selections
+            for (var i = 0; i < state.ranges.length; i++) {
+                var range = state.ranges[i];
+                var thumbs = this._getThumbsByRange(range);
+                for (var k = 0; k < thumbs.length; k++) {
+                    var thumb = thumbs[k];
+                    this._setThumbMultiSelected(thumb, range.multiSelected);
+                }
+            }
+        };
+        GalleryView.prototype._getThumbByCanvas = function (canvas) {
+            return this.thumbs.en().where(function (c) { return c.data.id === canvas.id; }).first();
+        };
+        GalleryView.prototype._setThumbMultiSelected = function (thumb, selected) {
+            $.observable(thumb).setProperty("multiSelected", selected);
         };
         GalleryView.prototype.updateThumbs = function () {
             if (!this.thumbs || !this.thumbs.length)
@@ -3303,13 +3489,7 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
             $wrap.height(height * this.range);
             $label.width(width * this.range);
         };
-        //sizeThumbImage($thumb: JQuery) : void {
-        //    var width = $thumb.data('width');
-        //    var height = $thumb.data('height');
-        //
-        //    var $img = $thumb.find('img');
-        //}
-        GalleryView.prototype.loadThumb = function ($thumb, callback) {
+        GalleryView.prototype.loadThumb = function ($thumb, cb) {
             var $wrap = $thumb.find('.wrap');
             if ($wrap.hasClass('loading') || $wrap.hasClass('loaded'))
                 return;
@@ -3319,16 +3499,16 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
             if (visible !== "false") {
                 $wrap.addClass('loading');
                 var src = $thumb.attr('data-src');
-                var img = $('<img src="' + src + '" />');
+                var img = $('<img class="thumbImage" src="' + src + '" />');
                 // fade in on load.
                 $(img).hide().load(function () {
                     $(this).fadeIn(fadeDuration, function () {
                         $(this).parent().swapClass('loading', 'loaded');
                     });
                 });
-                $wrap.append(img);
-                if (callback)
-                    callback(img);
+                $wrap.prepend(img);
+                if (cb)
+                    cb(img);
             }
             else {
                 $wrap.addClass('hidden');
@@ -3365,7 +3545,7 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
         };
         GalleryView.prototype.selectIndex = function (index) {
             // may be authenticating
-            if (index == -1)
+            if (index === -1)
                 return;
             if (!this.thumbs || !this.thumbs.length)
                 return;
@@ -3375,6 +3555,16 @@ define('modules/uv-treeviewleftpanel-module/GalleryView',["require", "exports", 
             this.$selectedThumb.addClass('selected');
             // make sure visible images are loaded.
             this.updateThumbs();
+        };
+        GalleryView.prototype._setMultiSelectionEnabled = function (enabled) {
+            for (var i = 0; i < this.thumbs.length; i++) {
+                var thumb = this.thumbs[i];
+                thumb.multiSelectionEnabled = enabled;
+            }
+        };
+        GalleryView.prototype._reset = function () {
+            this.$thumbs.undelegate('.thumb', 'click');
+            this._setMultiSelectionEnabled(this.multiSelectState.enabled);
         };
         GalleryView.prototype.getSelectedThumbIndex = function () {
             return Number(this.$selectedThumb.data('index'));
@@ -3465,7 +3655,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('modules/uv-treeviewleftpanel-module/ThumbsView',["require", "exports", "../uv-shared-module/BaseCommands", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands", "../../extensions/uv-seadragon-extension/Mode"], function (require, exports, BaseCommands, BaseView, Commands, Mode) {
+define('modules/uv-contentleftpanel-module/ThumbsView',["require", "exports", "../uv-shared-module/BaseCommands", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands", "../../extensions/uv-seadragon-extension/Mode"], function (require, exports, BaseCommands, BaseView, Commands, Mode) {
     var ThumbsView = (function (_super) {
         __extends(ThumbsView, _super);
         function ThumbsView($element) {
@@ -3475,7 +3665,7 @@ define('modules/uv-treeviewleftpanel-module/ThumbsView',["require", "exports", "
         }
         ThumbsView.prototype.create = function () {
             var _this = this;
-            this.setConfig('treeViewLeftPanel');
+            this.setConfig('contentLeftPanel');
             _super.prototype.create.call(this);
             $.subscribe(BaseCommands.CANVAS_INDEX_CHANGED, function (e, index) {
                 _this.selectIndex(parseInt(index));
@@ -3571,6 +3761,8 @@ define('modules/uv-treeviewleftpanel-module/ThumbsView',["require", "exports", "
             this.loadThumbs(0);
             this.isCreated = true;
         };
+        ThumbsView.prototype.selectAll = function (selected) {
+        };
         ThumbsView.prototype.scrollStop = function () {
             var scrollPos = 1 / ((this.$thumbs.height() - this.$element.height()) / this.$element.scrollTop());
             if (scrollPos > 1)
@@ -3602,6 +3794,7 @@ define('modules/uv-treeviewleftpanel-module/ThumbsView',["require", "exports", "
                         $wrap.removeClass('loadingFailed');
                         $wrap.addClass('loading');
                         var src = $thumb.attr('data-src');
+                        src += '?t=' + Utils.Dates.GetTimeStamp();
                         //console.log(i, src);
                         var img = $('<img src="' + src + '" />');
                         // fade in on load.
@@ -3725,7 +3918,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands"], function (require, exports, BaseView, Commands) {
+define('modules/uv-contentleftpanel-module/TreeView',["require", "exports", "../uv-shared-module/BaseView", "../../extensions/uv-seadragon-extension/Commands"], function (require, exports, BaseView, Commands) {
     var TreeView = (function (_super) {
         __extends(TreeView, _super);
         function TreeView($element) {
@@ -3733,7 +3926,15 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
             this.isOpen = false;
         }
         TreeView.prototype.create = function () {
+            var _this = this;
             _super.prototype.create.call(this);
+            var that = this;
+            $.subscribe(Commands.ENTER_MULTISELECT_MODE, function () {
+                _this.dataBind();
+            });
+            $.subscribe(Commands.MULTISELECT_CHANGE, function (s, state) {
+                _this._multiSelectStateChange(state);
+            });
             this.$tree = $('<ul class="tree"></ul>');
             this.$element.append(this.$tree);
             $.templates({
@@ -3742,18 +3943,17 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
                            {{/for}}',
                 treeTemplate: '<li>\
                                {^{if nodes && nodes.length}}\
-                                   {^{if expanded}}\
-                                       <div class="toggle expanded"></div>\
-                                   {{else}}\
-                                       <div class="toggle"></div>\
-                                   {{/if}}\
+                                   <div class="toggle" data-link="class{merge:expanded toggle=\'expanded\'}"></div>\
                                {{else}}\
-                                   <div class="spacer"></div>\
+                               <div class="spacer"></div>\
+                               {{/if}}\
+                               {^{if multiSelectionEnabled}}\
+                                    <input id="tree-checkbox-{{>id}}" type="checkbox" data-link="checked{:multiSelected ? \'checked\' : \'\'}" class="multiSelect" />\
                                {{/if}}\
                                {^{if selected}}\
-                                   <a href="#" title="{{>label}}" class="selected" data-link="~elide(text)"></a>\
+                                   <a id="tree-link-{{>id}}" href="#" title="{{>label}}" class="selected" data-link="~elide(text)"></a>\
                                {{else}}\
-                                   <a href="#" title="{{>label}}" data-link="~elide(text)"></a>\
+                                   <a id="tree-link-{{>id}}" href="#" title="{{>label}}" data-link="~elide(text)"></a>\
                                {{/if}}\
                            </li>\
                            {^{if expanded}}\
@@ -3776,11 +3976,12 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
             });
             $.views.tags({
                 tree: {
-                    toggle: function () {
-                        $.observable(this.data).setProperty("expanded", !this.data.expanded);
-                        //this.contents().find('a').each(function() {
-                        //    that.elide($(this));
-                        //});
+                    toggleExpanded: function () {
+                        that._setNodeExpanded(this.data, !this.data.expanded);
+                    },
+                    toggleMultiSelect: function () {
+                        that._multiSelectTreeNode(this.data, !this.data.multiSelected);
+                        that._updateParentNodes(this.data);
                     },
                     init: function (tagCtx, linkCtx, ctx) {
                         var data = tagCtx.view.data;
@@ -3789,15 +3990,21 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
                     },
                     onAfterLink: function () {
                         var self = this;
-                        self.contents("li").first()
-                            .on("click", ".toggle", function () {
-                            self.toggle();
-                        }).on("click", "a", function (e) {
+                        self.contents('li').first()
+                            .on('click', '.toggle', function () {
+                            self.toggleExpanded();
+                        }).on('click', 'a', function (e) {
                             e.preventDefault();
-                            if (self.data.nodes.length) {
-                                self.toggle();
+                            if (self.data.nodes.length)
+                                self.toggleExpanded();
+                            if (that.multiSelectState.enabled) {
+                                self.toggleMultiSelect();
                             }
-                            $.publish(Commands.TREE_NODE_SELECTED, [self.data.data]);
+                            else {
+                                $.publish(Commands.TREE_NODE_SELECTED, [self.data.data]);
+                            }
+                        }).on('click', 'input.multiSelect', function (e) {
+                            self.toggleMultiSelect();
                         });
                     },
                     template: $.templates.treeTemplate
@@ -3807,12 +4014,122 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
         TreeView.prototype.dataBind = function () {
             if (!this.rootNode)
                 return;
+            this._reset();
             this.$tree.link($.templates.pageTemplate, this.rootNode);
             this.resize();
         };
+        TreeView.prototype._multiSelectStateChange = function (state) {
+            this.multiSelectState = state;
+            for (var i = 0; i < this.multiSelectState.ranges.length; i++) {
+                var range = this.multiSelectState.ranges[i];
+                var node = this._getMultiSelectableNodes().en().where(function (n) { return n.data.id === range.id; }).first();
+                this._setNodeMultiSelected(node, range.multiSelected);
+            }
+            this.dataBind();
+        };
+        TreeView.prototype._reset = function () {
+            this.allNodes = null;
+            this.multiSelectableNodes = null;
+            this._setMultiSelectionEnabled(this.multiSelectState.enabled);
+        };
+        TreeView.prototype.allNodesSelected = function () {
+            var applicableNodes = this._getMultiSelectableNodes();
+            var multiSelectedNodes = this.getMultiSelectedNodes();
+            return applicableNodes.length === multiSelectedNodes.length;
+        };
+        TreeView.prototype._getMultiSelectableNodes = function () {
+            var _this = this;
+            // if cached
+            if (this.multiSelectableNodes) {
+                return this.multiSelectableNodes;
+            }
+            return this.multiSelectableNodes = this._getAllNodes().en().where(function (n) { return _this._nodeIsMultiSelectable(n); }).toArray();
+        };
+        TreeView.prototype._nodeIsMultiSelectable = function (node) {
+            return (node.isManifest() && node.nodes.length > 0 || node.isRange());
+        };
+        TreeView.prototype._getAllNodes = function () {
+            // if cached
+            if (this.allNodes) {
+                return this.allNodes;
+            }
+            return this.allNodes = this.rootNode.nodes.en().traverseUnique(function (node) { return node.nodes; }).toArray();
+        };
+        TreeView.prototype.getMultiSelectedNodes = function () {
+            var _this = this;
+            return this._getAllNodes().en().where(function (n) { return _this._nodeIsMultiSelectable(n) && n.multiSelected; }).toArray();
+        };
         TreeView.prototype.getNodeById = function (id) {
-            return this.rootNode.nodes.en().traverseUnique(function (node) { return node.nodes; })
-                .where(function (n) { return n.id === id; }).first();
+            return this._getAllNodes().en().where(function (n) { return n.id === id; }).first();
+        };
+        TreeView.prototype._multiSelectTreeNode = function (node, isSelected) {
+            if (!this._nodeIsMultiSelectable(node))
+                return;
+            this._setNodeMultiSelected(node, isSelected);
+            $.publish(Commands.TREE_NODE_MULTISELECTED, [node]);
+            // recursively select/deselect child nodes
+            for (var i = 0; i < node.nodes.length; i++) {
+                var n = node.nodes[i];
+                this._multiSelectTreeNode(n, isSelected);
+            }
+        };
+        TreeView.prototype._updateParentNodes = function (node) {
+            var parentNode = node.parentNode;
+            if (!parentNode)
+                return;
+            // expand parents if selected
+            if (node.selected) {
+                this._expandParents(node);
+            }
+            // get the number of selected children.
+            var checkedCount = parentNode.nodes.en().where(function (n) { return n.multiSelected; }).count();
+            // if any are checked, check the parent.
+            this._setNodeMultiSelected(parentNode, checkedCount > 0);
+            var indeterminate = checkedCount > 0 && checkedCount < parentNode.nodes.length;
+            this._setNodeIndeterminate(parentNode, indeterminate);
+            // cascade up tree
+            this._updateParentNodes(parentNode);
+        };
+        TreeView.prototype._expandParents = function (node) {
+            if (!node.parentNode)
+                return;
+            this._setNodeExpanded(node.parentNode, true);
+            this._expandParents(node.parentNode);
+        };
+        TreeView.prototype._setNodeSelected = function (node, selected) {
+            $.observable(node).setProperty("selected", selected);
+        };
+        TreeView.prototype._setNodeExpanded = function (node, expanded) {
+            $.observable(node).setProperty("expanded", expanded);
+        };
+        TreeView.prototype._setNodeMultiSelected = function (node, selected) {
+            $.observable(node).setProperty("multiSelected", selected);
+            if (!selected) {
+                this._setNodeIndeterminate(node, false);
+            }
+        };
+        TreeView.prototype._setNodeIndeterminate = function (node, indeterminate) {
+            var $checkbox = this._getNodeCheckbox(node);
+            $checkbox.prop("indeterminate", indeterminate);
+        };
+        TreeView.prototype._getNodeCheckbox = function (node) {
+            return $("#tree-checkbox-" + node.id);
+        };
+        TreeView.prototype._getNodeSiblings = function (node) {
+            var siblings = [];
+            if (node.parentNode) {
+                siblings = node.parentNode.nodes.en().where(function (n) { return n !== node; }).toArray();
+            }
+            return siblings;
+        };
+        TreeView.prototype._setMultiSelectionEnabled = function (enabled) {
+            var nodes = this._getAllNodes();
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                if (this._nodeIsMultiSelectable(node)) {
+                    node.multiSelectionEnabled = enabled;
+                }
+            }
         };
         TreeView.prototype.selectPath = function (path) {
             if (!this.rootNode)
@@ -3825,22 +4142,15 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
         };
         TreeView.prototype.deselectCurrentNode = function () {
             if (this.selectedNode)
-                $.observable(this.selectedNode).setProperty("selected", false);
+                this._setNodeSelected(this.selectedNode, false);
         };
         TreeView.prototype.selectNode = function (node) {
             if (!this.rootNode)
                 return;
             this.deselectCurrentNode();
             this.selectedNode = node;
-            $.observable(this.selectedNode).setProperty("selected", true);
-            this.expandParents(this.selectedNode);
-        };
-        // walk up the tree expanding parent nodes.
-        TreeView.prototype.expandParents = function (node) {
-            if (!node.parentNode)
-                return;
-            $.observable(node.parentNode).setProperty("expanded", true);
-            this.expandParents(node.parentNode);
+            this._setNodeSelected(this.selectedNode, true);
+            this._updateParentNodes(this.selectedNode);
         };
         // walks down the tree using the specified path e.g. [2,2,0]
         TreeView.prototype.getNodeByPath = function (parentNode, path) {
@@ -3881,25 +4191,35 @@ define('modules/uv-treeviewleftpanel-module/TreeView',["require", "exports", "..
     return TreeView;
 });
 
+define('modules/uv-shared-module/MultiSelectState',["require", "exports"], function (require, exports) {
+    var MultiSelectState = (function () {
+        function MultiSelectState() {
+        }
+        return MultiSelectState;
+    })();
+    return MultiSelectState;
+});
+
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "exports", "../uv-shared-module/BaseCommands", "../../extensions/uv-seadragon-extension/Commands", "./GalleryView", "../uv-shared-module/LeftPanel", "./ThumbsView", "../../extensions/uv-seadragon-extension/TreeSortType", "./TreeView"], function (require, exports, BaseCommands, Commands, GalleryView, LeftPanel, ThumbsView, TreeSortType, TreeView) {
-    var TreeViewLeftPanel = (function (_super) {
-        __extends(TreeViewLeftPanel, _super);
-        function TreeViewLeftPanel($element) {
+define('modules/uv-contentleftpanel-module/ContentLeftPanel',["require", "exports", "../uv-shared-module/BaseCommands", "../../extensions/uv-seadragon-extension/Commands", "./GalleryView", "../uv-shared-module/LeftPanel", "./ThumbsView", "../../extensions/uv-seadragon-extension/TreeSortType", "./TreeView", "../uv-shared-module/MultiSelectState"], function (require, exports, BaseCommands, Commands, GalleryView, LeftPanel, ThumbsView, TreeSortType, TreeView, MultiSelectState) {
+    var ContentLeftPanel = (function (_super) {
+        __extends(ContentLeftPanel, _super);
+        function ContentLeftPanel($element) {
             _super.call(this, $element);
+            this.isTreeViewOpen = false;
+            this.isThumbsViewOpen = false;
         }
-        TreeViewLeftPanel.prototype.create = function () {
+        ContentLeftPanel.prototype.create = function () {
             var _this = this;
-            this.setConfig('treeViewLeftPanel');
+            this.setConfig('contentLeftPanel');
             _super.prototype.create.call(this);
+            var that = this;
             $.subscribe(BaseCommands.SETTINGS_CHANGED, function () {
-                _this.dataBindThumbsView();
-                _this.dataBindTreeView();
-                _this.dataBindGalleryView();
+                _this.dataBind();
             });
             $.subscribe(Commands.GALLERY_THUMB_SELECTED, function () {
                 _this.collapseFull();
@@ -3909,6 +4229,48 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                     _this.collapseFull();
                 }
                 _this.selectCurrentTreeNode();
+            });
+            $.subscribe(Commands.ENTER_MULTISELECT_MODE, function (s, e) {
+                that._reset();
+                that.multiSelectState.enabled = true;
+                _this._publishMultiSelectStateChange();
+                that.setTitle(that.content.selection);
+                if (!that.isFullyExpanded) {
+                    that.expandFull();
+                }
+                else {
+                    _this._showMultiSelectOptions();
+                }
+                _this.$selectButton.text(e);
+            });
+            $.subscribe(Commands.EXIT_MULTISELECT_MODE, function () {
+                that._reset();
+                that.multiSelectState.enabled = false;
+                $.publish(Commands.MULTISELECT_CHANGE, [_this.multiSelectState]);
+                that.setTitle(that.content.title);
+                _this.$multiSelectOptions.hide();
+            });
+            $.subscribe(BaseCommands.LEFTPANEL_COLLAPSE_FULL_START, function () {
+                if (_this.multiSelectState.enabled) {
+                    $.publish(Commands.EXIT_MULTISELECT_MODE);
+                }
+            });
+            $.subscribe(BaseCommands.LEFTPANEL_EXPAND_FULL_START, function () {
+                if (_this.multiSelectState.enabled) {
+                    _this._showMultiSelectOptions();
+                }
+            });
+            $.subscribe(Commands.TREE_NODE_MULTISELECTED, function (s, node) {
+                if (node.isRange()) {
+                    _this._updateRangeMultiSelectState(node.data, node.multiSelected);
+                }
+            });
+            $.subscribe(Commands.THUMB_MULTISELECTED, function (s, thumb) {
+                var range = _this.provider.getCanvasRange(thumb.data);
+                if (range) {
+                    _this._updateRangeMultiSelectState(range, thumb.multiSelected);
+                }
+                _this._updateCanvasMultiSelectState(thumb.data, thumb.multiSelected);
             });
             this.$tabs = $('<div class="tabs"></div>');
             this.$main.append(this.$tabs);
@@ -3922,16 +4284,27 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.$main.append(this.$tabsContent);
             this.$options = $('<div class="options"></div>');
             this.$tabsContent.append(this.$options);
+            this.$leftOptions = $('<div class="left"></div>');
+            this.$options.append(this.$leftOptions);
+            this.$rightOptions = $('<div class="right"></div>');
+            this.$options.append(this.$rightOptions);
             this.$treeViewOptions = $('<div class="treeView"></div>');
-            this.$options.append(this.$treeViewOptions);
+            this.$leftOptions.append(this.$treeViewOptions);
             this.$sortByLabel = $('<span class="sort">' + this.content.sortBy + '</span>');
             this.$treeViewOptions.append(this.$sortByLabel);
-            this.$buttonGroup = $('<div class="btn-group"></div>');
-            this.$treeViewOptions.append(this.$buttonGroup);
+            this.$sortButtonGroup = $('<div class="btn-group"></div>');
+            this.$treeViewOptions.append(this.$sortButtonGroup);
             this.$sortByDateButton = $('<button class="btn">' + this.content.date + '</button>');
-            this.$buttonGroup.append(this.$sortByDateButton);
+            this.$sortButtonGroup.append(this.$sortByDateButton);
             this.$sortByVolumeButton = $('<button class="btn">' + this.content.volume + '</button>');
-            this.$buttonGroup.append(this.$sortByVolumeButton);
+            this.$sortButtonGroup.append(this.$sortByVolumeButton);
+            this.$multiSelectOptions = $('<div class="multiSelect"></div>');
+            this.$rightOptions.append(this.$multiSelectOptions);
+            this.$selectAllButton = $('<div class="multiSelectAll"><input id="multiSelectAll" type="checkbox" /><label for="multiSelectAll">' + this.content.selectAll + '</label></div>');
+            this.$multiSelectOptions.append(this.$selectAllButton);
+            this.$selectAllButtonCheckbox = $(this.$selectAllButton.find('input:checkbox'));
+            this.$selectButton = $('<a class="btn btn-primary">' + this.content.select + '</a>');
+            this.$multiSelectOptions.append(this.$selectButton);
             this.$views = $('<div class="views"></div>');
             this.$tabsContent.append(this.$views);
             this.$treeView = $('<div class="treeView"></div>');
@@ -3940,6 +4313,7 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.$views.append(this.$thumbsView);
             this.$galleryView = $('<div class="galleryView"></div>');
             this.$views.append(this.$galleryView);
+            this.$multiSelectOptions.hide();
             this.$sortByDateButton.on('click', function () {
                 _this.sortByDate();
             });
@@ -3955,11 +4329,19 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                 _this.openThumbsView();
                 $.publish(Commands.OPEN_THUMBS_VIEW);
             });
+            this.$selectAllButton.checkboxButton(function (checked) {
+                _this._multiSelectAll(checked);
+            });
+            this.$selectButton.on('click', function () {
+                var ids = _.map(that._getAllSelectedCanvases(), function (canvas) {
+                    return canvas.id;
+                });
+                $.publish(Commands.MULTISELECTION_MADE, [ids]);
+            });
             this.$expandButton.attr('tabindex', '7');
             this.$collapseButton.attr('tabindex', '7');
             this.$expandFullButton.attr('tabindex', '8');
-            this.$title.text(this.content.title);
-            this.$closedTitle.text(this.content.title);
+            this.setTitle(this.content.title);
             this.$sortByVolumeButton.addClass('on');
             var tabOrderConfig = this.options.tabOrder;
             if (tabOrderConfig) {
@@ -3975,14 +4357,33 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                     this.$treeButton.addClass('first');
                 }
             }
+            this._reset();
         };
-        TreeViewLeftPanel.prototype.createTreeView = function () {
+        ContentLeftPanel.prototype.createTreeView = function () {
             this.treeView = new TreeView(this.$treeView);
             this.treeView.elideCount = this.config.options.elideCount;
+            this.treeView.multiSelectState = this.multiSelectState;
             this.dataBindTreeView();
             this.updateTreeViewOptions();
         };
-        TreeViewLeftPanel.prototype.updateTreeViewOptions = function () {
+        ContentLeftPanel.prototype.dataBind = function () {
+            this._reset();
+            this.dataBindThumbsView();
+            this.dataBindTreeView();
+            this.dataBindGalleryView();
+        };
+        ContentLeftPanel.prototype._reset = function () {
+            this.multiSelectState = new MultiSelectState();
+            this.multiSelectState.ranges = this.provider.getRanges();
+            this.multiSelectState.canvases = this.provider.getCurrentSequence().getCanvases();
+            //this.multiSelectState.ranges = _.cloneDeep(this.provider.getRanges());
+            //this.multiSelectState.canvases = <ICanvas[]>_.cloneDeep(this.provider.getCurrentSequence().getCanvases());
+        };
+        ContentLeftPanel.prototype._showMultiSelectOptions = function () {
+            this.$multiSelectOptions.show();
+            this.resize();
+        };
+        ContentLeftPanel.prototype.updateTreeViewOptions = function () {
             if (this.isCollection() && this.treeData.nodes.length && !isNaN(this.treeData.nodes[0].navDate.getTime())) {
                 this.$treeViewOptions.show();
             }
@@ -3990,7 +4391,65 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                 this.$treeViewOptions.hide();
             }
         };
-        TreeViewLeftPanel.prototype.sortByDate = function () {
+        ContentLeftPanel.prototype._multiSelectAll = function (selected) {
+            this._multiSelectRanges(this.multiSelectState.ranges, selected);
+            this._multiSelectCanvases(this.multiSelectState.canvases, selected);
+            this._publishMultiSelectStateChange();
+        };
+        ContentLeftPanel.prototype._multiSelectRanges = function (ranges, selected) {
+            for (var i = 0; i < ranges.length; i++) {
+                var range = ranges[i];
+                range.multiSelected = selected;
+                var canvases = this._getCanvasesByIds(range.getCanvasIds());
+                this._multiSelectCanvases(canvases, selected);
+            }
+        };
+        ContentLeftPanel.prototype._multiSelectCanvases = function (canvases, selected) {
+            for (var j = 0; j < canvases.length; j++) {
+                var canvas = canvases[j];
+                canvas.multiSelected = selected;
+            }
+        };
+        ContentLeftPanel.prototype._getCanvasById = function (id) {
+            return this.multiSelectState.canvases.en().where(function (c) { return c.id === id; }).first();
+        };
+        ContentLeftPanel.prototype._getCanvasesByIds = function (ids) {
+            var canvases = [];
+            for (var i = 0; i < ids.length; i++) {
+                var id = ids[i];
+                canvases.push(this._getCanvasById(id));
+            }
+            return canvases;
+        };
+        ContentLeftPanel.prototype._updateRangeMultiSelectState = function (range, selected) {
+            var r = this.multiSelectState.ranges.en().where(function (r) { return r.id === range.id; }).first();
+            r.multiSelected = selected;
+            var canvases = this.provider.getRangeCanvases(r);
+            this._multiSelectCanvases(canvases, selected);
+            this._publishMultiSelectStateChange();
+        };
+        ContentLeftPanel.prototype._updateCanvasMultiSelectState = function (canvas, selected) {
+            var c = this.multiSelectState.canvases.en().where(function (c) { return c.id === canvas.id; }).first();
+            c.multiSelected = selected;
+            this._publishMultiSelectStateChange();
+        };
+        ContentLeftPanel.prototype._publishMultiSelectStateChange = function () {
+            this.$selectAllButtonCheckbox.prop('checked', this._allRangesSelected() && this._allCanvasesSelected());
+            $.publish(Commands.MULTISELECT_CHANGE, [this.multiSelectState]);
+        };
+        ContentLeftPanel.prototype._allRangesSelected = function () {
+            return this._getAllSelectedRanges().length === this.multiSelectState.ranges.length;
+        };
+        ContentLeftPanel.prototype._getAllSelectedRanges = function () {
+            return this.multiSelectState.ranges.en().where(function (r) { return r.multiSelected; }).toArray();
+        };
+        ContentLeftPanel.prototype._allCanvasesSelected = function () {
+            return this._getAllSelectedCanvases().length === this.multiSelectState.canvases.length;
+        };
+        ContentLeftPanel.prototype._getAllSelectedCanvases = function () {
+            return this.multiSelectState.canvases.en().where(function (c) { return c.multiSelected; }).toArray();
+        };
+        ContentLeftPanel.prototype.sortByDate = function () {
             this.treeView.rootNode = this.provider.getSortedTree(TreeSortType.date);
             this.treeView.dataBind();
             this.selectCurrentTreeNode();
@@ -3998,7 +4457,7 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.$sortByVolumeButton.removeClass('on');
             this.resize();
         };
-        TreeViewLeftPanel.prototype.sortByVolume = function () {
+        ContentLeftPanel.prototype.sortByVolume = function () {
             this.treeView.rootNode = this.provider.getSortedTree(TreeSortType.none);
             this.treeView.dataBind();
             this.selectCurrentTreeNode();
@@ -4006,20 +4465,22 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.$sortByVolumeButton.addClass('on');
             this.resize();
         };
-        TreeViewLeftPanel.prototype.isCollection = function () {
+        ContentLeftPanel.prototype.isCollection = function () {
             return this.treeData.data.type === manifesto.TreeNodeType.collection().toString();
         };
-        TreeViewLeftPanel.prototype.dataBindTreeView = function () {
+        ContentLeftPanel.prototype.dataBindTreeView = function () {
             if (!this.treeView)
                 return;
             this.treeView.rootNode = this.treeData;
             this.treeView.dataBind();
+            // ensure tree has current multiselect state
+            this._publishMultiSelectStateChange();
         };
-        TreeViewLeftPanel.prototype.createThumbsView = function () {
+        ContentLeftPanel.prototype.createThumbsView = function () {
             this.thumbsView = new ThumbsView(this.$thumbsView);
             this.dataBindThumbsView();
         };
-        TreeViewLeftPanel.prototype.dataBindThumbsView = function () {
+        ContentLeftPanel.prototype.dataBindThumbsView = function () {
             if (!this.thumbsView)
                 return;
             var width, height;
@@ -4035,19 +4496,22 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.thumbsView.thumbs = this.provider.getThumbs(width, height);
             this.thumbsView.dataBind();
         };
-        TreeViewLeftPanel.prototype.createGalleryView = function () {
+        ContentLeftPanel.prototype.createGalleryView = function () {
             this.galleryView = new GalleryView(this.$galleryView);
+            this.galleryView.multiSelectState = this.multiSelectState;
             this.dataBindGalleryView();
         };
-        TreeViewLeftPanel.prototype.dataBindGalleryView = function () {
+        ContentLeftPanel.prototype.dataBindGalleryView = function () {
             if (!this.galleryView)
                 return;
             var width = this.config.options.galleryThumbWidth;
             var height = this.config.options.galleryThumbHeight;
             this.galleryView.thumbs = this.provider.getThumbs(width, height);
             this.galleryView.dataBind();
+            // ensure gallery has current multiselect state
+            this._publishMultiSelectStateChange();
         };
-        TreeViewLeftPanel.prototype.toggleFinish = function () {
+        ContentLeftPanel.prototype.toggleFinish = function () {
             _super.prototype.toggleFinish.call(this);
             if (this.isUnopened) {
                 var treeEnabled = Utils.Bools.GetBool(this.config.options.treeEnabled, true);
@@ -4077,11 +4541,11 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                 this.$thumbsButton.attr('tabindex', '');
             }
         };
-        TreeViewLeftPanel.prototype.expandFullStart = function () {
+        ContentLeftPanel.prototype.expandFullStart = function () {
             _super.prototype.expandFullStart.call(this);
             $.publish(BaseCommands.LEFTPANEL_EXPAND_FULL_START);
         };
-        TreeViewLeftPanel.prototype.expandFullFinish = function () {
+        ContentLeftPanel.prototype.expandFullFinish = function () {
             _super.prototype.expandFullFinish.call(this);
             if (this.$treeButton.hasClass('on')) {
                 this.openTreeView();
@@ -4091,11 +4555,11 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             }
             $.publish(BaseCommands.LEFTPANEL_EXPAND_FULL_FINISH);
         };
-        TreeViewLeftPanel.prototype.collapseFullStart = function () {
+        ContentLeftPanel.prototype.collapseFullStart = function () {
             _super.prototype.collapseFullStart.call(this);
             $.publish(BaseCommands.LEFTPANEL_COLLAPSE_FULL_START);
         };
-        TreeViewLeftPanel.prototype.collapseFullFinish = function () {
+        ContentLeftPanel.prototype.collapseFullFinish = function () {
             _super.prototype.collapseFullFinish.call(this);
             // todo: write a more generic tabs system with base tab class.
             // thumbsView may not necessarily have been created yet.
@@ -4105,8 +4569,10 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             }
             $.publish(BaseCommands.LEFTPANEL_COLLAPSE_FULL_FINISH);
         };
-        TreeViewLeftPanel.prototype.openTreeView = function () {
+        ContentLeftPanel.prototype.openTreeView = function () {
             var _this = this;
+            this.isTreeViewOpen = true;
+            this.isThumbsViewOpen = false;
             if (!this.treeView) {
                 this.createTreeView();
             }
@@ -4127,7 +4593,9 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
             this.resize();
             this.treeView.resize();
         };
-        TreeViewLeftPanel.prototype.openThumbsView = function () {
+        ContentLeftPanel.prototype.openThumbsView = function () {
+            this.isTreeViewOpen = false;
+            this.isThumbsViewOpen = true;
             if (!this.thumbsView) {
                 this.createThumbsView();
             }
@@ -4154,7 +4622,7 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                 this.thumbsView.resize();
             }
         };
-        TreeViewLeftPanel.prototype.selectCurrentTreeNode = function () {
+        ContentLeftPanel.prototype.selectCurrentTreeNode = function () {
             if (this.treeView) {
                 var id;
                 var node;
@@ -4174,14 +4642,14 @@ define('modules/uv-treeviewleftpanel-module/TreeViewLeftPanel',["require", "expo
                 }
             }
         };
-        TreeViewLeftPanel.prototype.resize = function () {
+        ContentLeftPanel.prototype.resize = function () {
             _super.prototype.resize.call(this);
             this.$tabsContent.height(this.$main.height() - (this.$tabs.is(':visible') ? this.$tabs.height() : 0) - this.$tabsContent.verticalPadding());
-            this.$views.height(this.$tabsContent.height() - this.$options.height());
+            this.$views.height(this.$tabsContent.height() - this.$options.outerHeight());
         };
-        return TreeViewLeftPanel;
+        return ContentLeftPanel;
     })(LeftPanel);
-    return TreeViewLeftPanel;
+    return ContentLeftPanel;
 });
 
 var __extends = (this && this.__extends) || function (d, b) {
@@ -4189,7 +4657,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('extensions/uv-mediaelement-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./Commands", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-dialogues-module/HelpDialogue", "../../modules/uv-mediaelementcenterpanel-module/MediaElementCenterPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-treeviewleftpanel-module/TreeViewLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, Commands, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, HelpDialogue, MediaElementCenterPanel, MoreInfoRightPanel, SettingsDialogue, Shell, TreeViewLeftPanel) {
+define('extensions/uv-mediaelement-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./Commands", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-dialogues-module/HelpDialogue", "../../modules/uv-mediaelementcenterpanel-module/MediaElementCenterPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-contentleftpanel-module/ContentLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, Commands, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, HelpDialogue, MediaElementCenterPanel, MoreInfoRightPanel, SettingsDialogue, Shell, ContentLeftPanel) {
     var Extension = (function (_super) {
         __extends(Extension, _super);
         function Extension(bootstrapper) {
@@ -4234,7 +4702,7 @@ define('extensions/uv-mediaelement-extension/Extension',["require", "exports", "
             _super.prototype.createModules.call(this);
             this.headerPanel = new HeaderPanel(Shell.$headerPanel);
             if (this.isLeftPanelEnabled()) {
-                this.leftPanel = new TreeViewLeftPanel(Shell.$leftPanel);
+                this.leftPanel = new ContentLeftPanel(Shell.$leftPanel);
             }
             this.centerPanel = new MediaElementCenterPanel(Shell.$centerPanel);
             if (this.isRightPanelEnabled()) {
@@ -4357,7 +4825,11 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
         };
         BaseProvider.prototype.getCollectionIndex = function (iiifResource) {
             // todo: support nested collections. walk up parents adding to array and return csv string.
-            return iiifResource.parentCollection.index;
+            var index;
+            if (iiifResource.parentCollection) {
+                index = iiifResource.parentCollection.index;
+            }
+            return index;
         };
         BaseProvider.prototype.getManifestType = function () {
             var manifestType = this.manifest.getManifestType();
@@ -4415,6 +4887,20 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
         BaseProvider.prototype.isSeeAlsoEnabled = function () {
             return this.config.options.seeAlsoEnabled !== false;
         };
+        BaseProvider.prototype.getCanvases = function () {
+            return this.getCurrentSequence().getCanvases();
+        };
+        BaseProvider.prototype.getCanvasById = function (id) {
+            return this.getCurrentSequence().getCanvasById(id);
+        };
+        BaseProvider.prototype.getCanvasesById = function (ids) {
+            var canvases = [];
+            for (var i = 0; i < ids.length; i++) {
+                var id = ids[i];
+                canvases.push(this.getCanvasById(id));
+            }
+            return canvases;
+        };
         BaseProvider.prototype.getCanvasByIndex = function (index) {
             return this.getCurrentSequence().getCanvasByIndex(index);
         };
@@ -4423,8 +4909,16 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
         };
         BaseProvider.prototype.getCanvasRange = function (canvas) {
             // get ranges that contain the canvas id. return the last.
-            var ranges = this.manifest.getRanges();
-            return ranges.en().last(function (range) { return (range.getCanvases().en().any(function (c) { return c === canvas.id; })); });
+            return this.getCanvasRanges(canvas).last();
+        };
+        BaseProvider.prototype.getCanvasRanges = function (canvas) {
+            if (canvas.ranges) {
+                return canvas.ranges;
+            }
+            else {
+                canvas.ranges = this.manifest.getRanges().en().where(function (range) { return (range.getCanvasIds().en().any(function (c) { return c === canvas.id; })); }).toArray();
+            }
+            return canvas.ranges;
         };
         BaseProvider.prototype.getCurrentCanvas = function () {
             return this.getCurrentSequence().getCanvasByIndex(this.canvasIndex);
@@ -4432,24 +4926,15 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
         BaseProvider.prototype.getCurrentSequence = function () {
             return this.getSequenceByIndex(this.sequenceIndex);
         };
+        BaseProvider.prototype.getRangeCanvases = function (range) {
+            var ids = range.getCanvasIds();
+            return this.getCanvasesById(ids);
+        };
         BaseProvider.prototype.getTotalCanvases = function () {
             return this.getCurrentSequence().getTotalCanvases();
         };
         BaseProvider.prototype.isMultiCanvas = function () {
             return this.getCurrentSequence().isMultiCanvas();
-        };
-        BaseProvider.prototype.isPagingAvailable = function () {
-            // paged mode is useless unless you have at least 3 pages...
-            return this.isPagingEnabled() && this.getTotalCanvases() > 2;
-        };
-        BaseProvider.prototype.isPagingEnabled = function () {
-            return this.getCurrentSequence().isPagingEnabled();
-        };
-        BaseProvider.prototype.isPagingSettingEnabled = function () {
-            if (this.isPagingAvailable()) {
-                return this.getSettings().pagingEnabled;
-            }
-            return false;
         };
         BaseProvider.prototype.getInfoUri = function (canvas) {
             // default to IxIF
@@ -4466,52 +4951,24 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
             return [canvasIndex];
         };
         BaseProvider.prototype.getViewingDirection = function () {
-            return this.getCurrentSequence().getViewingDirection();
+            var viewingDirection = this.getCurrentSequence().getViewingDirection();
+            if (!viewingDirection.toString()) {
+                viewingDirection = this.manifest.getViewingDirection();
+            }
+            return viewingDirection;
+        };
+        BaseProvider.prototype.getViewingHint = function () {
+            var viewingHint = this.getCurrentSequence().getViewingHint();
+            if (!viewingHint.toString()) {
+                viewingHint = this.manifest.getViewingHint();
+            }
+            return viewingHint;
         };
         BaseProvider.prototype.getFirstPageIndex = function () {
             return 0;
         };
         BaseProvider.prototype.getLastPageIndex = function () {
             return this.getTotalCanvases() - 1;
-        };
-        BaseProvider.prototype.getPrevPageIndex = function (canvasIndex) {
-            if (typeof (canvasIndex) === 'undefined')
-                canvasIndex = this.canvasIndex;
-            var index;
-            if (this.isPagingSettingEnabled()) {
-                var indices = this.getPagedIndices(canvasIndex);
-                if (this.getViewingDirection().toString() === manifesto.ViewingDirection.rightToLeft().toString()) {
-                    index = indices.last() - 1;
-                }
-                else {
-                    index = indices[0] - 1;
-                }
-            }
-            else {
-                index = canvasIndex - 1;
-            }
-            return index;
-        };
-        BaseProvider.prototype.getNextPageIndex = function (canvasIndex) {
-            if (typeof (canvasIndex) === 'undefined')
-                canvasIndex = this.canvasIndex;
-            var index;
-            if (this.isPagingSettingEnabled()) {
-                var indices = this.getPagedIndices(canvasIndex);
-                if (this.getViewingDirection().toString() === manifesto.ViewingDirection.rightToLeft().toString()) {
-                    index = indices[0] + 1;
-                }
-                else {
-                    index = indices.last() + 1;
-                }
-            }
-            else {
-                index = canvasIndex + 1;
-            }
-            if (index > this.getTotalCanvases() - 1) {
-                return -1;
-            }
-            return index;
         };
         BaseProvider.prototype.getStartCanvasIndex = function () {
             return this.getCurrentSequence().getStartCanvasIndex();
@@ -4534,6 +4991,9 @@ define('modules/uv-shared-module/BaseProvider',["require", "exports", "../../Boo
         BaseProvider.prototype.getCanvasIndexByLabel = function (label) {
             var foliated = this.getManifestType().toString() === manifesto.ManifestType.manuscript().toString();
             return this.getCurrentSequence().getCanvasIndexByLabel(label, foliated);
+        };
+        BaseProvider.prototype.getRanges = function () {
+            return this.manifest.getRanges();
         };
         BaseProvider.prototype.getTree = function () {
             return this.iiifResource.getTree();
@@ -4915,7 +5375,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('extensions/uv-pdf-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "../../modules/uv-pdfcenterpanel-module/PDFCenterPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-treeviewleftpanel-module/TreeViewLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, MoreInfoRightPanel, PDFCenterPanel, SettingsDialogue, Shell, TreeViewLeftPanel) {
+define('extensions/uv-pdf-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "../../modules/uv-pdfcenterpanel-module/PDFCenterPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-contentleftpanel-module/ContentLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, MoreInfoRightPanel, PDFCenterPanel, SettingsDialogue, Shell, ContentLeftPanel) {
     var Extension = (function (_super) {
         __extends(Extension, _super);
         function Extension(bootstrapper) {
@@ -4958,7 +5418,7 @@ define('extensions/uv-pdf-extension/Extension',["require", "exports", "../../mod
             _super.prototype.createModules.call(this);
             this.headerPanel = new HeaderPanel(Shell.$headerPanel);
             if (this.isLeftPanelEnabled()) {
-                this.leftPanel = new TreeViewLeftPanel(Shell.$leftPanel);
+                this.leftPanel = new ContentLeftPanel(Shell.$leftPanel);
             }
             this.centerPanel = new PDFCenterPanel(Shell.$centerPanel);
             if (this.isRightPanelEnabled()) {
@@ -5026,6 +5486,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-dialogues-module/DownloadDialogue", "./Commands", "../../modules/uv-shared-module/DownloadOption"], function (require, exports, BaseCommands, BaseDownloadDialogue, Commands, DownloadOption) {
+    var Size = Utils.Measurements.Size;
     var DownloadDialogue = (function (_super) {
         __extends(DownloadDialogue, _super);
         function DownloadDialogue($element) {
@@ -5040,15 +5501,30 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
             this.$pagingNote = $('<div class="pagingNote">' + this.content.pagingNote + ' </div>');
             this.$pagingNote.append(this.$settingsButton);
             this.$content.append(this.$pagingNote);
-            this.$currentViewAsJpgButton = $('<li><input id="' + DownloadOption.currentViewAsJpg.toString() + '" type="radio" name="downloadOptions" /><label for="' + DownloadOption.currentViewAsJpg.toString() + '">' + this.content.currentViewAsJpg + '</label></li>');
-            this.$downloadOptions.append(this.$currentViewAsJpgButton);
+            this.$imageOptionsContainer = $('<li class="group image"></li>');
+            this.$downloadOptions.append(this.$imageOptionsContainer);
+            this.$imageOptions = $('<ul></ul>');
+            this.$imageOptionsContainer.append(this.$imageOptions);
+            this.$currentViewAsJpgButton = $('<li class="option"><input id="' + DownloadOption.currentViewAsJpg.toString() + '" type="radio" name="downloadOptions" /><label for="' + DownloadOption.currentViewAsJpg.toString() + '"></label></li>');
+            this.$imageOptions.append(this.$currentViewAsJpgButton);
             this.$currentViewAsJpgButton.hide();
-            this.$wholeImageHighResButton = $('<li><input id="' + DownloadOption.wholeImageHighRes.toString() + '" type="radio" name="downloadOptions" /><label id="' + DownloadOption.wholeImageHighRes.toString() + 'label" for="' + DownloadOption.wholeImageHighRes.toString() + '"></label></li>');
-            this.$downloadOptions.append(this.$wholeImageHighResButton);
+            this.$wholeImageHighResButton = $('<li class="option"><input id="' + DownloadOption.wholeImageHighRes.toString() + '" type="radio" name="downloadOptions" /><label id="' + DownloadOption.wholeImageHighRes.toString() + 'label" for="' + DownloadOption.wholeImageHighRes.toString() + '"></label></li>');
+            this.$imageOptions.append(this.$wholeImageHighResButton);
             this.$wholeImageHighResButton.hide();
-            this.$wholeImageLowResAsJpgButton = $('<li><input id="' + DownloadOption.wholeImageLowResAsJpg.toString() + '" type="radio" name="downloadOptions" /><label for="' + DownloadOption.wholeImageLowResAsJpg.toString() + '">' + this.content.wholeImageLowResAsJpg + '</label></li>');
-            this.$downloadOptions.append(this.$wholeImageLowResAsJpgButton);
+            this.$wholeImageLowResAsJpgButton = $('<li class="option"><input id="' + DownloadOption.wholeImageLowResAsJpg.toString() + '" type="radio" name="downloadOptions" /><label for="' + DownloadOption.wholeImageLowResAsJpg.toString() + '">' + this.content.wholeImageLowResAsJpg + '</label></li>');
+            this.$imageOptions.append(this.$wholeImageLowResAsJpgButton);
             this.$wholeImageLowResAsJpgButton.hide();
+            this.$canvasOptionsContainer = $('<li class="group canvas"></li>');
+            this.$downloadOptions.append(this.$canvasOptionsContainer);
+            this.$canvasOptions = $('<ul></ul>');
+            this.$canvasOptionsContainer.append(this.$canvasOptions);
+            this.$sequenceOptionsContainer = $('<li class="group sequence"></li>');
+            this.$downloadOptions.append(this.$sequenceOptionsContainer);
+            this.$sequenceOptions = $('<ul></ul>');
+            this.$sequenceOptionsContainer.append(this.$sequenceOptions);
+            this.$selectionButton = $('<li class="option"><input id="' + DownloadOption.selection.toString() + '" type="radio" name="downloadOptions" /><label id="' + DownloadOption.selection.toString() + 'label" for="' + DownloadOption.selection.toString() + '"></label></li>');
+            this.$sequenceOptions.append(this.$selectionButton);
+            this.$selectionButton.hide();
             this.$buttonsContainer = $('<div class="buttons"></div>');
             this.$content.append(this.$buttonsContainer);
             this.$downloadButton = $('<a class="btn btn-primary" href="#">' + this.content.download + '</a>');
@@ -5072,8 +5548,11 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
                     switch (id) {
                         case DownloadOption.currentViewAsJpg.toString():
                             var viewer = that.extension.getViewer();
-                            window.open(that.provider.getCroppedImageUri(canvas, viewer, true));
+                            window.open(that.provider.getCroppedImageUri(canvas, viewer));
                             $.publish(Commands.DOWNLOAD_CURRENTVIEW);
+                            break;
+                        case DownloadOption.selection.toString():
+                            $.publish(Commands.ENTER_MULTISELECT_MODE, [_this.content.downloadSelectionButton]);
                             break;
                         case DownloadOption.wholeImageHighRes.toString():
                             window.open(_this.getOriginalImageForCurrentCanvas());
@@ -5095,51 +5574,85 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
         };
         DownloadDialogue.prototype.open = function () {
             _super.prototype.open.call(this);
+            var canvas = this.provider.getCurrentCanvas();
             if (this.isDownloadOptionAvailable(DownloadOption.currentViewAsJpg)) {
-                this.$currentViewAsJpgButton.show();
+                var $label = this.$currentViewAsJpgButton.find('label');
+                var label = this.content.currentViewAsJpg;
+                var viewer = this.extension.getViewer();
+                var dimensions = this.provider.getCroppedImageDimensions(canvas, viewer);
+                if (dimensions) {
+                    label = String.format(label, dimensions.size.width, dimensions.size.height);
+                    $label.text(label);
+                    this.$currentViewAsJpgButton.show();
+                }
+                else {
+                    this.$currentViewAsJpgButton.hide();
+                }
             }
             else {
                 this.$currentViewAsJpgButton.hide();
             }
             if (this.isDownloadOptionAvailable(DownloadOption.wholeImageHighRes)) {
+                var $label = this.$wholeImageHighResButton.find('label');
                 var mime = this.getMimeTypeForCurrentCanvas();
-                var label = String.format(this.content.wholeImageHighRes, this.simplifyMimeType(mime));
-                $('#' + DownloadOption.wholeImageHighRes.toString() + 'label').text(label);
+                var size = this.getDimensionsForCurrentCanvas();
+                var label = String.format(this.content.wholeImageHighRes, size.width, size.height, this.simplifyMimeType(mime));
+                $label.text(label);
                 this.$wholeImageHighResButton.show();
             }
             else {
                 this.$wholeImageHighResButton.hide();
             }
             if (this.isDownloadOptionAvailable(DownloadOption.wholeImageLowResAsJpg)) {
+                var $label = this.$wholeImageLowResAsJpgButton.find('label');
+                var size = this.provider.getConfinedImageDimensions(canvas, this.options.confinedImageSize);
+                var label = String.format(this.content.wholeImageLowResAsJpg, size.width, size.height);
+                $label.text(label);
                 this.$wholeImageLowResAsJpgButton.show();
             }
             else {
                 this.$wholeImageLowResAsJpgButton.hide();
             }
+            if (this.isDownloadOptionAvailable(DownloadOption.selection)) {
+                var $label = this.$selectionButton.find('label');
+                $label.text(this.content.downloadSelection);
+                this.$selectionButton.show();
+            }
+            else {
+                this.$selectionButton.hide();
+            }
             this.resetDynamicDownloadOptions();
-            var currentCanvas = this.provider.getCurrentCanvas();
             if (this.isDownloadOptionAvailable(DownloadOption.dynamicImageRenderings)) {
-                var images = currentCanvas.getImages();
+                var images = canvas.getImages();
                 for (var i = 0; i < images.length; i++) {
-                    this.addDownloadOptionsForRenderings(images[i].getResource(), this.content.entireFileAsOriginal);
+                    this.addDownloadOptionsForRenderings(images[i].getResource(), this.content.entireFileAsOriginal, DownloadOption.dynamicImageRenderings);
                 }
             }
             if (this.isDownloadOptionAvailable(DownloadOption.dynamicCanvasRenderings)) {
-                this.addDownloadOptionsForRenderings(currentCanvas, this.content.entireFileAsOriginal);
+                this.addDownloadOptionsForRenderings(canvas, this.content.entireFileAsOriginal, DownloadOption.dynamicCanvasRenderings);
             }
             if (this.isDownloadOptionAvailable(DownloadOption.dynamicSequenceRenderings)) {
-                this.addDownloadOptionsForRenderings(this.provider.getCurrentSequence(), this.content.entireDocument);
+                this.addDownloadOptionsForRenderings(this.provider.getCurrentSequence(), this.content.entireDocument, DownloadOption.dynamicSequenceRenderings);
             }
-            if (!this.$downloadOptions.find('li:visible').length) {
+            if (!this.$downloadOptions.find('li.option:visible').length) {
                 this.$noneAvailable.show();
                 this.$downloadButton.hide();
             }
             else {
                 // select first option.
-                this.$downloadOptions.find('input:visible:first').prop("checked", true);
+                this.$downloadOptions.find('li.option input:visible:first').prop("checked", true);
                 this.$noneAvailable.hide();
                 this.$downloadButton.show();
             }
+            // hide empty groups
+            this.$downloadOptions.find('li.group').each(function (index, group) {
+                var $group = $(group);
+                $group.show();
+                if ($group.find('li.option:hidden').length === $group.find('li.option').length) {
+                    // all options are hidden, hide group.
+                    $group.hide();
+                }
+            });
             if (this.provider.isPagingSettingEnabled()) {
                 this.$pagingNote.show();
             }
@@ -5151,9 +5664,9 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
         DownloadDialogue.prototype.resetDynamicDownloadOptions = function () {
             this.renderingUrls = [];
             this.renderingUrlsCount = 0;
-            this.$downloadOptions.find('.dynamic').remove();
+            this.$downloadOptions.find('li.dynamic').remove();
         };
-        DownloadDialogue.prototype.addDownloadOptionsForRenderings = function (resource, defaultLabel) {
+        DownloadDialogue.prototype.addDownloadOptionsForRenderings = function (resource, defaultLabel, type) {
             var renderings = resource.getRenderings();
             for (var i = 0; i < renderings.length; i++) {
                 var rendering = renderings[i];
@@ -5170,13 +5683,23 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
                     }
                     label = String.format(label, this.simplifyMimeType(rendering.getFormat().toString()));
                     this.renderingUrls[currentId] = rendering.id;
-                    var newButton = $('<li class="dynamic"><input id="' + currentId + '" type="radio" name="downloadOptions" /><label for="' + currentId + '">' + label + '</label></li>');
-                    this.$downloadOptions.append(newButton);
+                    var newButton = $('<li class="option dynamic"><input id="' + currentId + '" type="radio" name="downloadOptions" /><label for="' + currentId + '">' + label + '</label></li>');
+                    switch (type) {
+                        case DownloadOption.dynamicImageRenderings:
+                            this.$imageOptions.append(newButton);
+                            break;
+                        case DownloadOption.dynamicCanvasRenderings:
+                            this.$canvasOptions.append(newButton);
+                            break;
+                        case DownloadOption.dynamicSequenceRenderings:
+                            this.$sequenceOptions.append(newButton);
+                            break;
+                    }
                 }
             }
         };
         DownloadDialogue.prototype.getSelectedOption = function () {
-            return this.$downloadOptions.find("input:checked");
+            return this.$downloadOptions.find("li.option input:checked");
         };
         DownloadDialogue.prototype.getCurrentCanvasImageResource = function () {
             var images = this.provider.getCurrentCanvas().getImages();
@@ -5194,8 +5717,23 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
             return resource ? resource.getFormat().toString() : null;
         };
         DownloadDialogue.prototype.getDimensionsForCurrentCanvas = function () {
-            var resource = this.getCurrentCanvasImageResource();
-            return resource ? [resource.getWidth(), resource.getHeight()] : [0, 0];
+            var image = this.getCurrentCanvasImageResource();
+            var size = new Size(0, 0);
+            if (!image)
+                return size;
+            size.width = image.getWidth();
+            size.height = image.getHeight();
+            var maxWidth = image.getMaxWidth();
+            var maxHeight = image.getMaxHeight();
+            var configMaxWidth = this.options.maxImageWidth;
+            if (maxWidth) {
+                if (configMaxWidth) {
+                    maxWidth = Math.min(maxWidth, configMaxWidth);
+                }
+                size.width = Math.min(size.width, maxWidth);
+                size.height = Math.min(size.height, maxHeight);
+            }
+            return size;
         };
         DownloadDialogue.prototype.isDownloadOptionAvailable = function (option) {
             switch (option) {
@@ -5203,11 +5741,13 @@ define('extensions/uv-seadragon-extension/DownloadDialogue',["require", "exports
                 case DownloadOption.dynamicCanvasRenderings:
                 case DownloadOption.dynamicImageRenderings:
                 case DownloadOption.wholeImageHighRes:
-                    return this.provider.isPagingSettingEnabled() ? false : true;
+                    return !this.provider.isPagingSettingEnabled();
                 case DownloadOption.wholeImageLowResAsJpg:
                     // hide low-res option if hi-res width is smaller than constraint
-                    var dimensions = this.getDimensionsForCurrentCanvas();
-                    return (!this.provider.isPagingSettingEnabled() && (dimensions[0] > this.options.confinedImageSize));
+                    var size = this.getDimensionsForCurrentCanvas();
+                    return (!this.provider.isPagingSettingEnabled() && (size.width > this.options.confinedImageSize));
+                case DownloadOption.selection:
+                    return this.options.selectionEnabled;
                 default:
                     return true;
             }
@@ -6429,29 +6969,58 @@ define('modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel',["require",
             });
         };
         SeadragonCenterPanel.prototype.positionPages = function () {
-            var viewingDirection = this.provider.getViewingDirection().toString();
-            // if there's more than one image, align them next to each other.
-            if (this.provider.resources.length > 1) {
-                // check if tilesources should be aligned horizontally or vertically
-                if (viewingDirection === manifesto.ViewingDirection.topToBottom().toString() || viewingDirection === manifesto.ViewingDirection.bottomToTop().toString()) {
-                    // vertical
-                    var topPage = this.viewer.world.getItemAt(0);
-                    var topPageBounds = topPage.getBounds(true);
-                    var y = topPageBounds.y + topPageBounds.height;
-                    var bottomPage = this.viewer.world.getItemAt(1);
-                    var bottomPagePos = bottomPage.getBounds(true).getTopLeft();
-                    bottomPagePos.y = y + this.config.options.pageGap;
-                    bottomPage.setPosition(bottomPagePos, true);
+            var resources = this.provider.resources;
+            // if there's more than one image, determine alignment strategy
+            if (resources.length > 1) {
+                if (resources.length === 2) {
+                    // recto verso
+                    if (this.provider.isVerticallyAligned()) {
+                        // vertical alignment
+                        var topPage = this.viewer.world.getItemAt(0);
+                        var topPageBounds = topPage.getBounds(true);
+                        var y = topPageBounds.y + topPageBounds.height;
+                        var bottomPage = this.viewer.world.getItemAt(1);
+                        var bottomPagePos = bottomPage.getBounds(true).getTopLeft();
+                        bottomPagePos.y = y + this.config.options.pageGap;
+                        bottomPage.setPosition(bottomPagePos, true);
+                    }
+                    else {
+                        // horizontal alignment
+                        var leftPage = this.viewer.world.getItemAt(0);
+                        var leftPageBounds = leftPage.getBounds(true);
+                        var x = leftPageBounds.x + leftPageBounds.width;
+                        var rightPage = this.viewer.world.getItemAt(1);
+                        var rightPagePos = rightPage.getBounds(true).getTopLeft();
+                        rightPagePos.x = x + this.config.options.pageGap;
+                        rightPage.setPosition(rightPagePos, true);
+                    }
                 }
                 else {
-                    // horizontal
-                    var leftPage = this.viewer.world.getItemAt(0);
-                    var leftPageBounds = leftPage.getBounds(true);
-                    var x = leftPageBounds.x + leftPageBounds.width;
-                    var rightPage = this.viewer.world.getItemAt(1);
-                    var rightPagePos = rightPage.getBounds(true).getTopLeft();
-                    rightPagePos.x = x + this.config.options.pageGap;
-                    rightPage.setPosition(rightPagePos, true);
+                    // scroll
+                    if (this.provider.isVerticallyAligned()) {
+                        // vertical alignment
+                        for (var i = 0; i < resources.length - 1; i++) {
+                            var page = this.viewer.world.getItemAt(i);
+                            var pageBounds = page.getBounds(true);
+                            var y = pageBounds.y + pageBounds.height;
+                            var nextPage = this.viewer.world.getItemAt(i + 1);
+                            var nextPagePos = nextPage.getBounds(true).getTopLeft();
+                            nextPagePos.y = y;
+                            nextPage.setPosition(nextPagePos, true);
+                        }
+                    }
+                    else {
+                        // horizontal alignment
+                        for (var i = 0; i < resources.length - 1; i++) {
+                            var page = this.viewer.world.getItemAt(i);
+                            var pageBounds = page.getBounds(true);
+                            var x = pageBounds.x + pageBounds.width;
+                            var nextPage = this.viewer.world.getItemAt(i + 1);
+                            var nextPagePos = nextPage.getBounds(true).getTopLeft();
+                            nextPagePos.x = x;
+                            nextPage.setPosition(nextPagePos, true);
+                        }
+                    }
                 }
             }
         };
@@ -6481,7 +7050,11 @@ define('modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel',["require",
                     this.goHome();
                 }
             }
-            if (this.provider.isMultiCanvas()) {
+            if (this.provider.isContinuous()) {
+                this.hidePrevButton();
+                this.hideNextButton();
+            }
+            else if (this.provider.isMultiCanvas()) {
                 $('.navigator').addClass('extraMargin');
                 if (!this.provider.isFirstCanvas()) {
                     this.enablePrevButton();
@@ -6520,6 +7093,14 @@ define('modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel',["require",
             this.prevButtonEnabled = true;
             this.$leftButton.removeClass('disabled');
         };
+        SeadragonCenterPanel.prototype.hidePrevButton = function () {
+            this.disablePrevButton();
+            this.$leftButton.hide();
+        };
+        SeadragonCenterPanel.prototype.showPrevButton = function () {
+            this.enablePrevButton();
+            this.$leftButton.show();
+        };
         SeadragonCenterPanel.prototype.disableNextButton = function () {
             this.nextButtonEnabled = false;
             this.$rightButton.addClass('disabled');
@@ -6527,6 +7108,14 @@ define('modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel',["require",
         SeadragonCenterPanel.prototype.enableNextButton = function () {
             this.nextButtonEnabled = true;
             this.$rightButton.removeClass('disabled');
+        };
+        SeadragonCenterPanel.prototype.hideNextButton = function () {
+            this.disableNextButton();
+            this.$rightButton.hide();
+        };
+        SeadragonCenterPanel.prototype.showNextButton = function () {
+            this.enableNextButton();
+            this.$rightButton.show();
         };
         SeadragonCenterPanel.prototype.serialiseBounds = function (bounds) {
             return bounds.x + ',' + bounds.y + ',' + bounds.width + ',' + bounds.height;
@@ -6630,6 +7219,15 @@ define('modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel',["require",
                 this.$leftButton.css('top', (this.$content.height() - this.$leftButton.height()) / 2);
                 this.$rightButton.css('top', (this.$content.height() - this.$rightButton.height()) / 2);
             }
+            // stretch navigator
+            if (this.provider.isContinuous()) {
+                if (this.provider.isHorizontallyAligned()) {
+                    this.$navigator.width(this.$viewer.width() - this.$viewer.rightMargin());
+                }
+                else {
+                    this.$navigator.height(this.$viewer.height());
+                }
+            }
         };
         SeadragonCenterPanel.prototype.setFocus = function () {
             var $canvas = $(this.viewer.canvas);
@@ -6666,6 +7264,7 @@ define('extensions/uv-seadragon-extension/SettingsDialogue',["require", "exports
             _super.prototype.create.call(this);
             this.$navigatorEnabled = $('<div class="setting navigatorEnabled"></div>');
             this.$scroll.append(this.$navigatorEnabled);
+            // todo: use .checkboxButton jquery extension
             this.$navigatorEnabledCheckbox = $('<input id="navigatorEnabled" type="checkbox" />');
             this.$navigatorEnabled.append(this.$navigatorEnabledCheckbox);
             this.$navigatorEnabledLabel = $('<label for="navigatorEnabled">' + this.content.navigatorEnabled + '</label>');
@@ -6750,7 +7349,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./Commands", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-dialogues-module/ExternalContentDialogue", "../../modules/uv-searchfooterpanel-module/FooterPanel", "../../modules/uv-dialogues-module/HelpDialogue", "./Mode", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "../../modules/uv-pagingheaderpanel-module/PagingHeaderPanel", "../../Params", "../../modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-treeviewleftpanel-module/TreeViewLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, Commands, DownloadDialogue, EmbedDialogue, ExternalContentDialogue, FooterPanel, HelpDialogue, Mode, MoreInfoRightPanel, PagingHeaderPanel, Params, SeadragonCenterPanel, SettingsDialogue, Shell, TreeViewLeftPanel) {
+define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./Commands", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-dialogues-module/ExternalContentDialogue", "../../modules/uv-searchfooterpanel-module/FooterPanel", "../../modules/uv-dialogues-module/HelpDialogue", "./Mode", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "../../modules/uv-pagingheaderpanel-module/PagingHeaderPanel", "../../Params", "../../modules/uv-seadragoncenterpanel-module/SeadragonCenterPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-contentleftpanel-module/ContentLeftPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, Commands, DownloadDialogue, EmbedDialogue, ExternalContentDialogue, FooterPanel, HelpDialogue, Mode, MoreInfoRightPanel, PagingHeaderPanel, Params, SeadragonCenterPanel, SettingsDialogue, Shell, ContentLeftPanel) {
     var Extension = (function (_super) {
         __extends(Extension, _super);
         function Extension(bootstrapper) {
@@ -6833,6 +7432,9 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
                 var settings = _this.provider.getSettings();
                 $.publish(BaseCommands.SETTINGS_CHANGED, [settings]);
             });
+            $.subscribe(Commands.MULTISELECTION_MADE, function (e, ids) {
+                _this.triggerSocket(Commands.MULTISELECTION_MADE, ids);
+            });
             $.subscribe(Commands.NEXT, function (e) {
                 _this.triggerSocket(Commands.NEXT);
                 _this.viewPage(_this.provider.getNextPageIndex());
@@ -6885,7 +7487,7 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
                 }
                 var canvas = _this.provider.getCurrentCanvas();
                 _this.triggerSocket(Commands.CURRENT_VIEW_URI, {
-                    "cropUri": that.provider.getCroppedImageUri(canvas, _this.getViewer(), true),
+                    "cropUri": that.provider.getCroppedImageUri(canvas, _this.getViewer()),
                     "fullUri": that.provider.getConfinedImageUri(canvas, canvas.getWidth(), canvas.getHeight())
                 });
             });
@@ -6949,7 +7551,7 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
             _super.prototype.createModules.call(this);
             this.headerPanel = new PagingHeaderPanel(Shell.$headerPanel);
             if (this.isLeftPanelEnabled()) {
-                this.leftPanel = new TreeViewLeftPanel(Shell.$leftPanel);
+                this.leftPanel = new ContentLeftPanel(Shell.$leftPanel);
             }
             else {
                 Shell.$leftPanel.hide();
@@ -7052,7 +7654,7 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
             var range = this.provider.getRangeByPath(path);
             if (!range)
                 return;
-            var canvasId = range.getCanvases()[0];
+            var canvasId = range.getCanvasIds()[0];
             var index = this.provider.getCanvasIndexById(canvasId);
             this.viewPage(index);
         };
@@ -7074,11 +7676,16 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
         Extension.prototype.treeNodeSelected = function (data) {
             if (!data.type)
                 return;
-            if (data.type === 'manifest') {
-                this.viewManifest(data);
-            }
-            else {
-                this.viewRange(data.path);
+            switch (data.type) {
+                case manifesto.IIIFResourceType.manifest().toString():
+                    this.viewManifest(data);
+                    break;
+                case manifesto.IIIFResourceType.collection().toString():
+                    this.viewCollection(data);
+                    break;
+                default:
+                    this.viewRange(data.path);
+                    break;
             }
         };
         Extension.prototype.searchWithin = function (terms) {
@@ -7127,7 +7734,7 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
             var bookmark = new Bookmark();
             bookmark.index = this.provider.canvasIndex;
             bookmark.label = canvas.getLabel();
-            bookmark.path = this.provider.getCroppedImageUri(canvas, this.getViewer(), true);
+            bookmark.path = this.provider.getCroppedImageUri(canvas, this.getViewer());
             bookmark.thumb = canvas.getThumbUri(this.provider.config.options.bookmarkThumbWidth, this.provider.config.options.bookmarkThumbHeight);
             bookmark.title = this.provider.getTitle();
             bookmark.type = manifesto.ElementType.image().toString();
@@ -7136,6 +7743,20 @@ define('extensions/uv-seadragon-extension/Extension',["require", "exports", "../
         return Extension;
     })(BaseExtension);
     return Extension;
+});
+
+define('extensions/uv-seadragon-extension/CroppedImageDimensions',["require", "exports"], function (require, exports) {
+    var Size = Utils.Measurements.Size;
+    var Vector = Utils.Maths.Vector;
+    var CroppedImageDimensions = (function () {
+        function CroppedImageDimensions() {
+            this.region = new Size(0, 0);
+            this.regionPos = new Vector(0, 0);
+            this.size = new Size(0, 0);
+        }
+        return CroppedImageDimensions;
+    })();
+    return CroppedImageDimensions;
 });
 
 define('extensions/uv-seadragon-extension/SearchResultRect',["require", "exports"], function (require, exports) {
@@ -7178,7 +7799,9 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../../modules/uv-shared-module/BaseProvider", "./SearchResult", "./TreeSortType"], function (require, exports, BaseProvider, SearchResult, TreeSortType) {
+define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../../modules/uv-shared-module/BaseProvider", "./CroppedImageDimensions", "./SearchResult", "./TreeSortType"], function (require, exports, BaseProvider, CroppedImageDimensions, SearchResult, TreeSortType) {
+    var Size = Utils.Measurements.Size;
+    var Vector = Utils.Maths.Vector;
     var Provider = (function (_super) {
         __extends(Provider, _super);
         function Provider(bootstrapper) {
@@ -7192,11 +7815,15 @@ define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../.
                 iiifImageUriTemplate: '{0}/{1}/{2}/{3}/{4}/{5}.jpg'
             }, bootstrapper.config.options);
         }
-        Provider.prototype.getCroppedImageUri = function (canvas, viewer) {
+        // get the region and final size
+        Provider.prototype.getCroppedImageDimensions = function (canvas, viewer) {
             if (!viewer)
                 return null;
             if (!viewer.viewport)
                 return null;
+            if (!canvas.getHeight() || !canvas.getWidth()) {
+                return null;
+            }
             var bounds = viewer.viewport.getBounds(true);
             var containerSize = viewer.viewport.getContainerSize();
             var zoom = viewer.viewport.getZoom(true);
@@ -7220,41 +7847,54 @@ define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../.
             var rect2Right = viewportLeftPx + viewportWidthPx;
             var rect2Top = viewportTopPx;
             var rect2Bottom = viewportTopPx + viewportHeightPx;
-            var cropWidth = Math.max(0, Math.min(rect1Right, rect2Right) - Math.max(rect1Left, rect2Left));
-            var cropHeight = Math.max(0, Math.min(rect1Bottom, rect2Bottom) - Math.max(rect1Top, rect2Top));
+            var sizeWidth = Math.max(0, Math.min(rect1Right, rect2Right) - Math.max(rect1Left, rect2Left));
+            var sizeHeight = Math.max(0, Math.min(rect1Bottom, rect2Bottom) - Math.max(rect1Top, rect2Top));
             // get original image pixel sizes.
             var ratio2 = canvas.getWidth() / imageWidthPx;
-            var widthPx = parseInt(String(cropWidth * ratio2));
-            var heightPx = parseInt(String(cropHeight * ratio2));
-            var topPx = parseInt(String(canvas.getHeight() * top));
-            var leftPx = parseInt(String(canvas.getWidth() * left));
-            if (topPx < 0)
-                topPx = 0;
-            if (leftPx < 0)
-                leftPx = 0;
+            var regionWidth = parseInt(String(sizeWidth * ratio2));
+            var regionHeight = parseInt(String(sizeHeight * ratio2));
+            var regionTop = parseInt(String(canvas.getHeight() * top));
+            var regionLeft = parseInt(String(canvas.getWidth() * left));
+            if (regionTop < 0)
+                regionTop = 0;
+            if (regionLeft < 0)
+                regionLeft = 0;
+            var dimensions = new CroppedImageDimensions();
+            dimensions.region = new Size(regionWidth, regionHeight);
+            dimensions.regionPos = new Vector(regionLeft, regionTop);
+            dimensions.size = new Size(sizeWidth, sizeHeight);
+            return dimensions;
+        };
+        Provider.prototype.getCroppedImageUri = function (canvas, viewer) {
+            if (!viewer)
+                return null;
+            if (!viewer.viewport)
+                return null;
+            var dimensions = this.getCroppedImageDimensions(canvas, viewer);
             // construct uri
             // {baseuri}/{id}/{region}/{size}/{rotation}/{quality}.jpg
             var baseUri = this.getImageBaseUri(canvas);
             var id = this.getImageId(canvas);
-            var region = leftPx + "," + topPx + "," + widthPx + "," + heightPx;
-            var size = cropWidth + ',' + cropHeight;
+            var region = dimensions.regionPos.X + "," + dimensions.regionPos.Y + "," + dimensions.region.width + "," + dimensions.region.height;
+            var size = dimensions.size.width + ',' + dimensions.size.height;
             var rotation = 0;
             var quality = 'default';
-            var uri = String.format(this.config.options.iiifImageUriTemplate, baseUri, id, region, size, rotation, quality);
-            return uri;
+            return String.format(this.config.options.iiifImageUriTemplate, baseUri, id, region, size, rotation, quality);
         };
-        Provider.prototype.getConfinedImageUri = function (canvas, width, height) {
+        Provider.prototype.getConfinedImageDimensions = function (canvas, width) {
+            var dimensions = new Size(0, 0);
+            dimensions.width = width;
+            var normWidth = Math.normalise(width, 0, canvas.getWidth());
+            dimensions.height = Math.floor(canvas.getHeight() * normWidth);
+            return dimensions;
+        };
+        Provider.prototype.getConfinedImageUri = function (canvas, width) {
             var baseUri = this.getImageBaseUri(canvas);
             // {baseuri}/{id}/{region}/{size}/{rotation}/{quality}.jpg
             var id = this.getImageId(canvas);
             var region = 'full';
-            var size;
-            if (typeof (height) != "undefined") {
-                size = width + ',' + height;
-            }
-            else {
-                size = width + ",";
-            }
+            var dimensions = this.getConfinedImageDimensions(canvas, width);
+            var size = dimensions.width + ',' + dimensions.height;
             var rotation = 0;
             var quality = 'default';
             var uri = String.format(this.config.options.iiifImageUriTemplate, baseUri, id, region, size, rotation, quality);
@@ -7301,25 +7941,51 @@ define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../.
             var script = String.format(template, this.getSerializedLocales(), configUri, this.manifestUri, this.collectionIndex, this.manifestIndex, this.sequenceIndex, this.canvasIndex, zoom, rotation, width, height, this.embedScriptUri);
             return script;
         };
-        Provider.prototype.getPagedIndices = function (canvasIndex) {
-            if (typeof (canvasIndex) === 'undefined')
+        Provider.prototype.getPrevPageIndex = function (canvasIndex) {
+            if (_.isUndefined(canvasIndex))
                 canvasIndex = this.canvasIndex;
-            var indices = [];
-            if (!this.isPagingSettingEnabled()) {
-                indices.push(this.canvasIndex);
-            }
-            else {
-                if (this.isFirstCanvas(canvasIndex) || (this.isLastCanvas(canvasIndex) && this.isTotalCanvasesEven())) {
-                    indices = [canvasIndex];
-                }
-                else if (canvasIndex % 2) {
-                    indices = [canvasIndex, canvasIndex + 1];
+            var index;
+            if (this.isPagingSettingEnabled()) {
+                var indices = this.getPagedIndices(canvasIndex);
+                if (this.isRightToLeft()) {
+                    index = indices.last() - 1;
                 }
                 else {
-                    indices = [canvasIndex - 1, canvasIndex];
+                    index = indices[0] - 1;
                 }
-                if (this.getViewingDirection().toString() === manifesto.ViewingDirection.rightToLeft().toString()) {
-                    indices = indices.reverse();
+            }
+            else {
+                index = canvasIndex - 1;
+            }
+            return index;
+        };
+        Provider.prototype.getPagedIndices = function (canvasIndex) {
+            if (_.isUndefined(canvasIndex))
+                canvasIndex = this.canvasIndex;
+            var indices = [];
+            // if it's a continuous manifest, get all resources.
+            if (this.isContinuous()) {
+                indices = _.map(this.getCanvases(), function (c, index) {
+                    return index;
+                });
+            }
+            else {
+                if (!this.isPagingSettingEnabled()) {
+                    indices.push(this.canvasIndex);
+                }
+                else {
+                    if (this.isFirstCanvas(canvasIndex) || (this.isLastCanvas(canvasIndex) && this.isTotalCanvasesEven())) {
+                        indices = [canvasIndex];
+                    }
+                    else if (canvasIndex % 2) {
+                        indices = [canvasIndex, canvasIndex + 1];
+                    }
+                    else {
+                        indices = [canvasIndex - 1, canvasIndex];
+                    }
+                    if (this.isRightToLeft()) {
+                        indices = indices.reverse();
+                    }
                 }
             }
             return indices;
@@ -7332,6 +7998,64 @@ define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../.
                 return false;
             }
             return true;
+        };
+        Provider.prototype.isContinuous = function () {
+            return this.getViewingHint().toString() === manifesto.ViewingHint.continuous().toString();
+        };
+        Provider.prototype.isPaged = function () {
+            return this.getViewingHint().toString() === manifesto.ViewingHint.paged().toString();
+        };
+        Provider.prototype.isBottomToTop = function () {
+            return this.getViewingDirection().toString() === manifesto.ViewingDirection.bottomToTop().toString();
+        };
+        Provider.prototype.isTopToBottom = function () {
+            return this.getViewingDirection().toString() === manifesto.ViewingDirection.topToBottom().toString();
+        };
+        Provider.prototype.isLeftToRight = function () {
+            return this.getViewingDirection().toString() === manifesto.ViewingDirection.leftToRight().toString();
+        };
+        Provider.prototype.isRightToLeft = function () {
+            return this.getViewingDirection().toString() === manifesto.ViewingDirection.rightToLeft().toString();
+        };
+        Provider.prototype.isHorizontallyAligned = function () {
+            return this.isLeftToRight() || this.isRightToLeft();
+        };
+        Provider.prototype.isVerticallyAligned = function () {
+            return this.isTopToBottom() || this.isBottomToTop();
+        };
+        Provider.prototype.isPagingAvailable = function () {
+            // paged mode is useless unless you have at least 3 pages...
+            return this.isPagingEnabled() && this.getTotalCanvases() > 2;
+        };
+        Provider.prototype.isPagingEnabled = function () {
+            return this.getCurrentSequence().isPagingEnabled();
+        };
+        Provider.prototype.isPagingSettingEnabled = function () {
+            if (this.isPagingAvailable()) {
+                return this.getSettings().pagingEnabled;
+            }
+            return false;
+        };
+        Provider.prototype.getNextPageIndex = function (canvasIndex) {
+            if (_.isUndefined(canvasIndex))
+                canvasIndex = this.canvasIndex;
+            var index;
+            if (this.isPagingSettingEnabled()) {
+                var indices = this.getPagedIndices(canvasIndex);
+                if (this.isRightToLeft()) {
+                    index = indices[0] + 1;
+                }
+                else {
+                    index = indices.last() + 1;
+                }
+            }
+            else {
+                index = canvasIndex + 1;
+            }
+            if (index > this.getTotalCanvases() - 1) {
+                return -1;
+            }
+            return index;
         };
         Provider.prototype.getAutoCompleteService = function () {
             var service = this.getSearchWithinService();
@@ -7409,8 +8133,8 @@ define('extensions/uv-seadragon-extension/Provider',["require", "exports", "../.
             var all = tree.nodes.en().traverseUnique(function (node) { return node.nodes; })
                 .where(function (n) { return n.data.type === manifesto.TreeNodeType.collection().toString() ||
                 n.data.type === manifesto.TreeNodeType.manifest().toString(); }).toArray();
-            //var collections: Manifesto.TreeNode[] = tree.nodes.en().traverseUnique(n => n.nodes)
-            //    .where((n) => n.data.type === manifesto.TreeNodeType.collection().toString()).toArray();
+            //var collections: ITreeNode[] = tree.nodes.en().traverseUnique(n => n.nodes)
+            //    .where((n) => n.data.type === ITreeNodeType.collection().toString()).toArray();
             var manifests = tree.nodes.en().traverseUnique(function (n) { return n.nodes; })
                 .where(function (n) { return n.data.type === manifesto.TreeNodeType.manifest().toString(); }).toArray();
             this.createDecadeNodes(sortedTree, all);
@@ -7739,7 +8463,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define('extensions/uv-virtex-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-treeviewleftpanel-module/TreeViewLeftPanel", "../../modules/uv-virtexcenterpanel-module/VirtexCenterPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, MoreInfoRightPanel, SettingsDialogue, Shell, TreeViewLeftPanel, VirtexCenterPanel) {
+define('extensions/uv-virtex-extension/Extension',["require", "exports", "../../modules/uv-shared-module/BaseCommands", "../../modules/uv-shared-module/BaseExtension", "../../modules/uv-shared-module/Bookmark", "./DownloadDialogue", "./EmbedDialogue", "../../modules/uv-shared-module/FooterPanel", "../../modules/uv-shared-module/HeaderPanel", "../../modules/uv-moreinforightpanel-module/MoreInfoRightPanel", "./SettingsDialogue", "../../modules/uv-shared-module/Shell", "../../modules/uv-contentleftpanel-module/ContentLeftPanel", "../../modules/uv-virtexcenterpanel-module/VirtexCenterPanel"], function (require, exports, BaseCommands, BaseExtension, Bookmark, DownloadDialogue, EmbedDialogue, FooterPanel, HeaderPanel, MoreInfoRightPanel, SettingsDialogue, Shell, ContentLeftPanel, VirtexCenterPanel) {
     var Extension = (function (_super) {
         __extends(Extension, _super);
         function Extension(bootstrapper) {
@@ -7767,7 +8491,7 @@ define('extensions/uv-virtex-extension/Extension',["require", "exports", "../../
             _super.prototype.createModules.call(this);
             this.headerPanel = new HeaderPanel(Shell.$headerPanel);
             if (this.isLeftPanelEnabled()) {
-                this.leftPanel = new TreeViewLeftPanel(Shell.$leftPanel);
+                this.leftPanel = new ContentLeftPanel(Shell.$leftPanel);
             }
             this.centerPanel = new VirtexCenterPanel(Shell.$centerPanel);
             if (this.isRightPanelEnabled()) {
@@ -8057,6 +8781,7 @@ String.prototype.utf8_to_b64 = function () {
 };
 
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define('manifesto',e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.manifesto=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
+(function (global){
 var Manifesto;
 (function (Manifesto) {
     var StringValue = (function () {
@@ -8363,16 +9088,22 @@ var Manifesto;
         };
         ServiceProfile.AUTOCOMPLETE = new ServiceProfile("http://iiif.io/api/search/0/autocomplete");
         ServiceProfile.CLICKTHROUGH = new ServiceProfile("http://wellcomelibrary.org/ld/iiif-ext/0/accept-terms-click-through");
+        ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE0 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/compliance.html#level0");
         ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE1 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/compliance.html#level1");
         ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE2 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/compliance.html#level2");
+        ServiceProfile.STANFORDIIIFIMAGECONFORMANCE0 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/conformance.html#level0");
         ServiceProfile.STANFORDIIIFIMAGECONFORMANCE1 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/conformance.html#level1");
         ServiceProfile.STANFORDIIIFIMAGECONFORMANCE2 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/conformance.html#level2");
+        ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE0 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level0");
         ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE1 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level1");
         ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE2 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level2");
+        ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE0 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/conformance.html#level0");
         ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE1 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/conformance.html#level1");
         ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE2 = new ServiceProfile("http://library.stanford.edu/iiif/image-api/1.1/conformance.html#level2");
+        ServiceProfile.IIIF1IMAGELEVEL0 = new ServiceProfile("http://iiif.io/api/image/1/level0.json");
         ServiceProfile.IIIF1IMAGELEVEL1 = new ServiceProfile("http://iiif.io/api/image/1/level1.json");
         ServiceProfile.IIIF1IMAGELEVEL2 = new ServiceProfile("http://iiif.io/api/image/1/level2.json");
+        ServiceProfile.IIIF2IMAGELEVEL0 = new ServiceProfile("http://iiif.io/api/image/2/level0.json");
         ServiceProfile.IIIF2IMAGELEVEL1 = new ServiceProfile("http://iiif.io/api/image/2/level1.json");
         ServiceProfile.IIIF2IMAGELEVEL2 = new ServiceProfile("http://iiif.io/api/image/2/level2.json");
         ServiceProfile.IXIF = new ServiceProfile("http://wellcomelibrary.org/ld/ixif/0/alpha.json");
@@ -8543,7 +9274,6 @@ var Manifesto;
         __extends(Canvas, _super);
         function Canvas(jsonld, options) {
             _super.call(this, jsonld, options);
-            this.ranges = [];
         }
         Canvas.prototype.getImages = function () {
             var images = [];
@@ -8715,7 +9445,8 @@ var Manifesto;
         function Manifest(jsonld, options) {
             _super.call(this, jsonld, options);
             this.index = 0;
-            this.sequences = null;
+            this._ranges = null;
+            this._sequences = null;
             if (this.__jsonld.structures && this.__jsonld.structures.length) {
                 var r = this._getRootRange();
                 this._parseRanges(r, '');
@@ -8770,11 +9501,13 @@ var Manifesto;
             }
         };
         Manifest.prototype.getRanges = function () {
-            var ranges = [];
+            if (this._ranges != null)
+                return this._ranges;
+            this._ranges = [];
             if (this.rootRange) {
-                ranges = this.rootRange.ranges.en().traverseUnique(function (range) { return range.ranges; }).toArray();
+                this._ranges = this.rootRange.ranges.en().traverseUnique(function (range) { return range.ranges; }).toArray();
             }
-            return ranges;
+            return this._ranges;
         };
         Manifest.prototype.getRangeById = function (id) {
             var ranges = this.getRanges();
@@ -8797,19 +9530,19 @@ var Manifesto;
             return null;
         };
         Manifest.prototype.getSequences = function () {
-            if (this.sequences != null)
-                return this.sequences;
-            this.sequences = [];
+            if (this._sequences != null)
+                return this._sequences;
+            this._sequences = [];
             // if IxIF mediaSequences is present, use that. Otherwise fall back to IIIF sequences.
             var children = this.__jsonld.mediaSequences || this.__jsonld.sequences;
             if (children) {
                 for (var i = 0; i < children.length; i++) {
                     var s = children[i];
                     var sequence = new Manifesto.Sequence(s, this.options);
-                    this.sequences.push(sequence);
+                    this._sequences.push(sequence);
                 }
             }
-            return this.sequences;
+            return this._sequences;
         };
         Manifest.prototype.getSequenceByIndex = function (sequenceIndex) {
             return this.getSequences()[sequenceIndex];
@@ -8868,6 +9601,12 @@ var Manifesto;
             }
             return Manifesto.ViewingDirection.LEFTTORIGHT;
         };
+        Manifest.prototype.getViewingHint = function () {
+            if (this.getProperty('viewingHint')) {
+                return new Manifesto.ViewingHint(this.getProperty('viewingHint'));
+            }
+            return Manifesto.ViewingHint.EMPTY;
+        };
         return Manifest;
     })(Manifesto.IIIFResource);
     Manifesto.Manifest = Manifest;
@@ -8912,6 +9651,7 @@ var Manifesto;
                     var tree = manifest.getTree();
                     tree.label = manifest.getTitle() || 'manifest ' + (i + 1);
                     tree.navDate = manifest.getNavDate();
+                    tree.data.id = manifest.id;
                     tree.data.type = Manifesto.TreeNodeType.MANIFEST.toString();
                     parentCollection.treeRoot.addNode(tree);
                 }
@@ -8924,6 +9664,7 @@ var Manifesto;
                     var tree = collection.getTree();
                     tree.label = collection.getTitle() || 'collection ' + (i + 1);
                     tree.navDate = collection.getNavDate();
+                    tree.data.id = collection.id;
                     tree.data.type = Manifesto.TreeNodeType.COLLECTION.toString();
                     parentCollection.treeRoot.addNode(tree);
                     this._parseCollections(collection);
@@ -8942,7 +9683,7 @@ var Manifesto;
             _super.call(this, jsonld, options);
             this.ranges = [];
         }
-        Range.prototype.getCanvases = function () {
+        Range.prototype.getCanvasIds = function () {
             if (this.__jsonld.canvases) {
                 return this.__jsonld.canvases;
             }
@@ -8997,6 +9738,7 @@ var Manifesto;
                 for (var i = 0; i < children.length; i++) {
                     var c = children[i];
                     var canvas = new Manifesto.Canvas(c, this.options);
+                    canvas.index = i;
                     this.canvases.push(canvas);
                 }
             }
@@ -9144,17 +9886,10 @@ var Manifesto;
         };
         Sequence.prototype.getThumbs = function (width, height) {
             var thumbs = [];
-            for (var i = 0; i < this.getTotalCanvases(); i++) {
+            var totalCanvases = this.getTotalCanvases();
+            for (var i = 0; i < totalCanvases; i++) {
                 var canvas = this.getCanvasByIndex(i);
-                //if (!_isNumber(height)) {
-                var heightRatio = canvas.getHeight() / canvas.getWidth();
-                if (heightRatio) {
-                    height = Math.floor(width * heightRatio);
-                }
-                //}
-                var uri = canvas.getThumbUri(width, height);
-                var label = canvas.getLabel();
-                thumbs.push(new Manifesto.Thumb(i, uri, label, width, height, true));
+                thumbs.push(new Manifesto.Thumb(width, canvas));
             }
             return thumbs;
         };
@@ -9316,13 +10051,16 @@ var Manifesto;
 var Manifesto;
 (function (Manifesto) {
     var Thumb = (function () {
-        function Thumb(index, uri, label, width, height, visible) {
-            this.index = index;
-            this.uri = uri;
-            this.label = label;
+        function Thumb(width, canvas) {
+            this.data = canvas;
+            this.index = canvas.index;
             this.width = width;
-            this.height = height;
-            this.visible = visible;
+            var heightRatio = canvas.getHeight() / canvas.getWidth();
+            if (heightRatio) {
+                this.height = Math.floor(this.width * heightRatio);
+            }
+            this.uri = canvas.getThumbUri(width, this.height);
+            this.label = canvas.getLabel();
         }
         return Thumb;
     })();
@@ -9333,14 +10071,21 @@ var Manifesto;
     var TreeNode = (function () {
         function TreeNode(label, data) {
             this.label = label;
-            this.data = data;
+            this.data = data || {};
             this.nodes = [];
-            if (!data)
-                this.data = {};
         }
         TreeNode.prototype.addNode = function (node) {
             this.nodes.push(node);
             node.parentNode = this;
+        };
+        TreeNode.prototype.isCollection = function () {
+            return this.data.type === Manifesto.TreeNodeType.COLLECTION.toString();
+        };
+        TreeNode.prototype.isManifest = function () {
+            return this.data.type === Manifesto.TreeNodeType.MANIFEST.toString();
+        };
+        TreeNode.prototype.isRange = function () {
+            return this.data.type === Manifesto.TreeNodeType.RANGE.toString();
         };
         return TreeNode;
     })();
@@ -9363,9 +10108,9 @@ var Manifesto;
         TreeNodeType.prototype.range = function () {
             return new TreeNodeType(TreeNodeType.RANGE.toString());
         };
-        TreeNodeType.COLLECTION = new TreeNodeType("collection");
-        TreeNodeType.MANIFEST = new TreeNodeType("manifest");
-        TreeNodeType.RANGE = new TreeNodeType("range");
+        TreeNodeType.COLLECTION = new TreeNodeType("sc:collection");
+        TreeNodeType.MANIFEST = new TreeNodeType("sc:manifest");
+        TreeNodeType.RANGE = new TreeNodeType("sc:range");
         return TreeNodeType;
     })(Manifesto.StringValue);
     Manifesto.TreeNodeType = TreeNodeType;
@@ -9425,7 +10170,7 @@ var Manifesto;
                 request.end();
             });
         };
-        Utils.loadExternalResource = function (resource, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
+        Utils.loadExternalResource = function (resource, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
             return new Promise(function (resolve, reject) {
                 if (options && options.pessimisticAccessControl) {
                     // pessimistic: access control cookies may have been deleted.
@@ -9442,14 +10187,14 @@ var Manifesto;
                                     getAccessToken(resource).then(function (token) {
                                         resource.getData(token).then(function () {
                                             resolve(handleResourceResponse(resource));
-                                        })["catch"](function (error) {
-                                            reject(error);
+                                        })["catch"](function (message) {
+                                            reject(Utils.createInternalServerError(message));
                                         });
-                                    })["catch"](function (error) {
-                                        reject(error);
+                                    })["catch"](function (message) {
+                                        reject(Utils.createInternalServerError(message));
                                     });
-                                })["catch"](function (error) {
-                                    reject(error);
+                                })["catch"](function (message) {
+                                    reject(Utils.createInternalServerError(message));
                                 });
                             }
                         }
@@ -9457,8 +10202,8 @@ var Manifesto;
                             // this info.json isn't access controlled, therefore no need to request an access token.
                             resolve(resource);
                         }
-                    })["catch"](function (error) {
-                        reject(error);
+                    })["catch"](function (message) {
+                        reject(Utils.createInternalServerError(message));
                     });
                 }
                 else {
@@ -9467,7 +10212,7 @@ var Manifesto;
                     // if cookies are deleted a page refresh is required.
                     // try loading the resource using an access token that matches the info.json domain.
                     // if an access token is found, request the resource using it regardless of whether it is access controlled.
-                    getStoredAccessToken(resource).then(function (storedAccessToken) {
+                    getStoredAccessToken(resource, tokenStorageStrategy).then(function (storedAccessToken) {
                         if (storedAccessToken) {
                             // try using the stored access token
                             resource.getData(storedAccessToken).then(function () {
@@ -9478,33 +10223,45 @@ var Manifesto;
                                 else {
                                     // otherwise, load the resource data to determine the correct access control services.
                                     // if access controlled, do login.
-                                    Utils.authorize(resource, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken).then(function () {
+                                    Utils.authorize(resource, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken).then(function () {
                                         resolve(handleResourceResponse(resource));
                                     })["catch"](function (error) {
-                                        reject(error);
+                                        reject(Utils.createAuthorizationFailedError());
                                     });
                                 }
                             })["catch"](function (error) {
-                                reject(error);
+                                reject(Utils.createAuthorizationFailedError());
                             });
                         }
                         else {
-                            Utils.authorize(resource, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken).then(function () {
+                            Utils.authorize(resource, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken).then(function () {
                                 resolve(handleResourceResponse(resource));
                             })["catch"](function (error) {
-                                reject(error);
+                                reject(Utils.createAuthorizationFailedError());
                             });
                         }
                     })["catch"](function (error) {
-                        reject(error);
+                        reject(Utils.createAuthorizationFailedError());
                     });
                 }
             });
         };
-        Utils.loadExternalResources = function (resources, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
+        Utils.createError = function (name, message) {
+            var error = new Error();
+            error.message = message;
+            error.name = HTTPStatusCode.SERVICE_UNAVAILABLE.toString();
+            return error;
+        };
+        Utils.createAuthorizationFailedError = function () {
+            return Utils.createError(HTTPStatusCode.SERVICE_UNAVAILABLE.toString(), "Authorization failed");
+        };
+        Utils.createInternalServerError = function (message) {
+            return Utils.createError(HTTPStatusCode.INTERNAL_SERVER_ERROR.toString(), message);
+        };
+        Utils.loadExternalResources = function (resources, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
             return new Promise(function (resolve, reject) {
                 var promises = _map(resources, function (resource) {
-                    return Utils.loadExternalResource(resource, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options);
+                    return Utils.loadExternalResource(resource, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options);
                 });
                 Promise.all(promises)
                     .then(function () {
@@ -9514,17 +10271,38 @@ var Manifesto;
                 });
             });
         };
-        Utils.authorize = function (resource, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken) {
+        Utils.authorize = function (resource, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken) {
             return new Promise(function (resolve, reject) {
                 resource.getData().then(function () {
                     if (resource.isAccessControlled()) {
-                        getStoredAccessToken(resource).then(function (storedAccessToken) {
+                        getStoredAccessToken(resource, tokenStorageStrategy).then(function (storedAccessToken) {
                             if (storedAccessToken) {
                                 // try using the stored access token
                                 resource.getData(storedAccessToken).then(function () {
-                                    resolve(resource);
-                                })["catch"](function (error) {
-                                    reject(error);
+                                    // invalid access token
+                                    if (resource.status === HTTPStatusCode.FORBIDDEN) {
+                                        // get an access token
+                                        login(resource).then(function () {
+                                            getAccessToken(resource).then(function (accessToken) {
+                                                storeAccessToken(resource, accessToken, tokenStorageStrategy).then(function () {
+                                                    resource.getData(accessToken).then(function () {
+                                                        resolve(resource);
+                                                    })["catch"](function (message) {
+                                                        reject(Utils.createInternalServerError(message));
+                                                    });
+                                                })["catch"](function (message) {
+                                                    reject(Utils.createInternalServerError(message));
+                                                });
+                                            })["catch"](function (message) {
+                                                reject(Utils.createInternalServerError(message));
+                                            });
+                                        });
+                                    }
+                                    else {
+                                        resolve(resource);
+                                    }
+                                })["catch"](function (message) {
+                                    reject(Utils.createInternalServerError(message));
                                 });
                             }
                             else {
@@ -9539,17 +10317,17 @@ var Manifesto;
                                     // if the resource has a click through service, use that.
                                     clickThrough(resource).then(function () {
                                         getAccessToken(resource).then(function (accessToken) {
-                                            storeAccessToken(resource, accessToken).then(function () {
+                                            storeAccessToken(resource, accessToken, tokenStorageStrategy).then(function () {
                                                 resource.getData(accessToken).then(function () {
                                                     resolve(resource);
-                                                })["catch"](function (error) {
-                                                    reject(error);
+                                                })["catch"](function (message) {
+                                                    reject(Utils.createInternalServerError(message));
                                                 });
-                                            })["catch"](function (error) {
-                                                reject(error);
+                                            })["catch"](function (message) {
+                                                reject(Utils.createInternalServerError(message));
                                             });
-                                        })["catch"](function (error) {
-                                            reject(error);
+                                        })["catch"](function (message) {
+                                            reject(Utils.createInternalServerError(message));
                                         });
                                     });
                                 }
@@ -9557,23 +10335,23 @@ var Manifesto;
                                     // get an access token
                                     login(resource).then(function () {
                                         getAccessToken(resource).then(function (accessToken) {
-                                            storeAccessToken(resource, accessToken).then(function () {
+                                            storeAccessToken(resource, accessToken, tokenStorageStrategy).then(function () {
                                                 resource.getData(accessToken).then(function () {
                                                     resolve(resource);
-                                                })["catch"](function (error) {
-                                                    reject(error);
+                                                })["catch"](function (message) {
+                                                    reject(Utils.createInternalServerError(message));
                                                 });
-                                            })["catch"](function (error) {
-                                                reject(error);
+                                            })["catch"](function (message) {
+                                                reject(Utils.createInternalServerError(message));
                                             });
-                                        })["catch"](function (error) {
-                                            reject(error);
+                                        })["catch"](function (message) {
+                                            reject(Utils.createInternalServerError(message));
                                         });
                                     });
                                 }
                             }
-                        })["catch"](function (error) {
-                            reject(error);
+                        })["catch"](function (message) {
+                            reject(Utils.createInternalServerError(message));
                         });
                     }
                     else {
@@ -9641,7 +10419,7 @@ var Manifesto;
     })();
     Manifesto.Utils = Utils;
 })(Manifesto || (Manifesto = {}));
-module.exports = {
+global.manifesto = module.exports = {
     AnnotationMotivation: new Manifesto.AnnotationMotivation(),
     CanvasType: new Manifesto.CanvasType(),
     ElementType: new Manifesto.ElementType(),
@@ -9665,17 +10443,56 @@ module.exports = {
         return new Manifesto.TreeNode();
     },
     isImageProfile: function (profile) {
-        if (profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE1.toString() ||
+        if (profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE1.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE0.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE1.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE0.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE1.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE0.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE1.toString() ||
             profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL0.toString() ||
             profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL1.toString() ||
             profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL0.toString() ||
             profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL2.toString()) {
+            return true;
+        }
+        return false;
+    },
+    isLevel0ImageProfile: function (profile) {
+        if (profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL0.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL0.toString()) {
+            return true;
+        }
+        return false;
+    },
+    isLevel1ImageProfile: function (profile) {
+        if (profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL1.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL1.toString()) {
+            return true;
+        }
+        return false;
+    },
+    isLevel2ImageProfile: function (profile) {
+        if (profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECOMPLIANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECOMPLIANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIFIMAGECONFORMANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.STANFORDIIIF1IMAGECONFORMANCE2.toString() ||
+            profile.toString() === Manifesto.ServiceProfile.IIIF1IMAGELEVEL2.toString() ||
             profile.toString() === Manifesto.ServiceProfile.IIIF2IMAGELEVEL2.toString()) {
             return true;
         }
@@ -9683,8 +10500,8 @@ module.exports = {
     },
     // todo: create hasServiceDescriptor
     // based on @profile and @type (or lack of) can the resource describe associated services?
-    loadExternalResources: function (resources, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
-        return Manifesto.Utils.loadExternalResources(resources, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options);
+    loadExternalResources: function (resources, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options) {
+        return Manifesto.Utils.loadExternalResources(resources, tokenStorageStrategy, clickThrough, login, getAccessToken, storeAccessToken, getStoredAccessToken, handleResourceResponse, options);
     },
     loadManifest: function (uri) {
         return Manifesto.Utils.loadResource(uri);
@@ -9714,7 +10531,9 @@ module.exports = {
 /// <reference path="./Sequence.ts" />
 /// <reference path="./Serialisation.ts" />
 /// <reference path="./Service.ts" />
+/// <reference path="./IThumb.ts" />
 /// <reference path="./Thumb.ts" />
+/// <reference path="./ITreeNode.ts" />
 /// <reference path="./TreeNode.ts" />
 /// <reference path="./TreeNodeType.ts" />
 /// <reference path="./Utils.ts" />
@@ -9758,11 +10577,23 @@ var Manifesto;
         Resource.prototype.getHeight = function () {
             return this.getProperty('height');
         };
+        Resource.prototype.getMaxWidth = function () {
+            return this.getProperty('maxWidth');
+        };
+        Resource.prototype.getMaxHeight = function () {
+            var maxHeight = this.getProperty('maxHeight');
+            // if a maxHeight hasn't been specified, default to maxWidth.
+            // maxWidth in essence becomes maxEdge
+            if (!maxHeight) {
+                return this.getMaxWidth();
+            }
+        };
         return Resource;
     })(Manifesto.ManifestResource);
     Manifesto.Resource = Resource;
 })(Manifesto || (Manifesto = {}));
 
+}).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"http":6,"lodash.assign":27,"lodash.endswith":37,"lodash.isarray":39,"lodash.isstring":40,"lodash.last":41,"lodash.map":42,"url":24}],2:[function(_dereq_,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
@@ -16970,17 +17801,285 @@ module.exports = isArguments;
 
 },{}],37:[function(_dereq_,module,exports){
 /**
- * lodash 3.0.2 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * lodash 3.2.0 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modularize exports="npm" -o ./`
+ * Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Copyright 2009-2016 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  * Available under MIT license <https://lodash.com/license>
  */
-var baseToString = _dereq_('lodash._basetostring');
+var root = _dereq_('lodash._root');
 
-/* Native method references for those with the same name as other `lodash` methods. */
-var nativeMin = Math.min;
+/** Used as references for various `Number` constants. */
+var INFINITY = 1 / 0,
+    MAX_INTEGER = 1.7976931348623157e+308,
+    NAN = 0 / 0;
+
+/** `Object#toString` result references. */
+var funcTag = '[object Function]',
+    genTag = '[object GeneratorFunction]',
+    symbolTag = '[object Symbol]';
+
+/** Used to match leading and trailing whitespace. */
+var reTrim = /^\s+|\s+$/g;
+
+/** Used to detect bad signed hexadecimal string values. */
+var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+/** Used to detect binary string values. */
+var reIsBinary = /^0b[01]+$/i;
+
+/** Used to detect octal string values. */
+var reIsOctal = /^0o[0-7]+$/i;
+
+/** Built-in method references without a dependency on `root`. */
+var freeParseInt = parseInt;
+
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/**
+ * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * of values.
+ */
+var objectToString = objectProto.toString;
+
+/** Built-in value references. */
+var Symbol = root.Symbol;
+
+/** Used to convert symbols to primitives and strings. */
+var symbolProto = Symbol ? Symbol.prototype : undefined,
+    symbolToString = Symbol ? symbolProto.toString : undefined;
+
+/**
+ * The base implementation of `_.clamp` which doesn't coerce arguments to numbers.
+ *
+ * @private
+ * @param {number} number The number to clamp.
+ * @param {number} [lower] The lower bound.
+ * @param {number} upper The upper bound.
+ * @returns {number} Returns the clamped number.
+ */
+function baseClamp(number, lower, upper) {
+  if (number === number) {
+    if (upper !== undefined) {
+      number = number <= upper ? number : upper;
+    }
+    if (lower !== undefined) {
+      number = number >= lower ? number : lower;
+    }
+  }
+  return number;
+}
+
+/**
+ * Checks if `value` is classified as a `Function` object.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @example
+ *
+ * _.isFunction(_);
+ * // => true
+ *
+ * _.isFunction(/abc/);
+ * // => false
+ */
+function isFunction(value) {
+  // The use of `Object#toString` avoids issues with the `typeof` operator
+  // in Safari 8 which returns 'object' for typed array constructors, and
+  // PhantomJS 1.9 which returns 'function' for `NodeList` instances.
+  var tag = isObject(value) ? objectToString.call(value) : '';
+  return tag == funcTag || tag == genTag;
+}
+
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(_.noop);
+ * // => true
+ *
+ * _.isObject(null);
+ * // => false
+ */
+function isObject(value) {
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Checks if `value` is object-like. A value is object-like if it's not `null`
+ * and has a `typeof` result of "object".
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+ * @example
+ *
+ * _.isObjectLike({});
+ * // => true
+ *
+ * _.isObjectLike([1, 2, 3]);
+ * // => true
+ *
+ * _.isObjectLike(_.noop);
+ * // => false
+ *
+ * _.isObjectLike(null);
+ * // => false
+ */
+function isObjectLike(value) {
+  return !!value && typeof value == 'object';
+}
+
+/**
+ * Checks if `value` is classified as a `Symbol` primitive or object.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @example
+ *
+ * _.isSymbol(Symbol.iterator);
+ * // => true
+ *
+ * _.isSymbol('abc');
+ * // => false
+ */
+function isSymbol(value) {
+  return typeof value == 'symbol' ||
+    (isObjectLike(value) && objectToString.call(value) == symbolTag);
+}
+
+/**
+ * Converts `value` to an integer.
+ *
+ * **Note:** This function is loosely based on [`ToInteger`](http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger).
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {number} Returns the converted integer.
+ * @example
+ *
+ * _.toInteger(3);
+ * // => 3
+ *
+ * _.toInteger(Number.MIN_VALUE);
+ * // => 0
+ *
+ * _.toInteger(Infinity);
+ * // => 1.7976931348623157e+308
+ *
+ * _.toInteger('3');
+ * // => 3
+ */
+function toInteger(value) {
+  if (!value) {
+    return value === 0 ? value : 0;
+  }
+  value = toNumber(value);
+  if (value === INFINITY || value === -INFINITY) {
+    var sign = (value < 0 ? -1 : 1);
+    return sign * MAX_INTEGER;
+  }
+  var remainder = value % 1;
+  return value === value ? (remainder ? value - remainder : value) : 0;
+}
+
+/**
+ * Converts `value` to a number.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {number} Returns the number.
+ * @example
+ *
+ * _.toNumber(3);
+ * // => 3
+ *
+ * _.toNumber(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toNumber(Infinity);
+ * // => Infinity
+ *
+ * _.toNumber('3');
+ * // => 3
+ */
+function toNumber(value) {
+  if (isObject(value)) {
+    var other = isFunction(value.valueOf) ? value.valueOf() : value;
+    value = isObject(other) ? (other + '') : other;
+  }
+  if (typeof value != 'string') {
+    return value === 0 ? value : +value;
+  }
+  value = value.replace(reTrim, '');
+  var isBinary = reIsBinary.test(value);
+  return (isBinary || reIsOctal.test(value))
+    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+    : (reIsBadHex.test(value) ? NAN : +value);
+}
+
+/**
+ * Converts `value` to a string if it's not one. An empty string is returned
+ * for `null` and `undefined` values. The sign of `-0` is preserved.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {string} Returns the string.
+ * @example
+ *
+ * _.toString(null);
+ * // => ''
+ *
+ * _.toString(-0);
+ * // => '-0'
+ *
+ * _.toString([1, 2, 3]);
+ * // => '1,2,3'
+ */
+function toString(value) {
+  // Exit early for strings to avoid a performance hit in some environments.
+  if (typeof value == 'string') {
+    return value;
+  }
+  if (value == null) {
+    return '';
+  }
+  if (isSymbol(value)) {
+    return Symbol ? symbolToString.call(value) : '';
+  }
+  var result = (value + '');
+  return (result == '0' && (1 / value) == -INFINITY) ? '-0' : result;
+}
 
 /**
  * Checks if `string` ends with the given target string.
@@ -17004,13 +18103,13 @@ var nativeMin = Math.min;
  * // => true
  */
 function endsWith(string, target, position) {
-  string = baseToString(string);
-  target = (target + '');
+  string = toString(string);
+  target = typeof target == 'string' ? target : (target + '');
 
   var length = string.length;
   position = position === undefined
     ? length
-    : nativeMin(position < 0 ? 0 : (+position || 0), length);
+    : baseClamp(toInteger(position), 0, length);
 
   position -= target.length;
   return position >= 0 && string.indexOf(target, position) == position;
@@ -17018,30 +18117,63 @@ function endsWith(string, target, position) {
 
 module.exports = endsWith;
 
-},{"lodash._basetostring":38}],38:[function(_dereq_,module,exports){
+},{"lodash._root":38}],38:[function(_dereq_,module,exports){
+(function (global){
 /**
- * lodash 3.0.1 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * lodash 3.0.0 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modularize exports="npm" -o ./`
+ * Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Copyright 2009-2016 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  * Available under MIT license <https://lodash.com/license>
  */
 
+/** Used to determine if values are of the language type `Object`. */
+var objectTypes = {
+  'function': true,
+  'object': true
+};
+
+/** Detect free variable `exports`. */
+var freeExports = (objectTypes[typeof exports] && exports && !exports.nodeType) ? exports : null;
+
+/** Detect free variable `module`. */
+var freeModule = (objectTypes[typeof module] && module && !module.nodeType) ? module : null;
+
+/** Detect free variable `global` from Node.js. */
+var freeGlobal = checkGlobal(freeExports && freeModule && typeof global == 'object' && global);
+
+/** Detect free variable `self`. */
+var freeSelf = checkGlobal(objectTypes[typeof self] && self);
+
+/** Detect free variable `window`. */
+var freeWindow = checkGlobal(objectTypes[typeof window] && window);
+
+/** Detect `this` as the global object. */
+var thisGlobal = checkGlobal(objectTypes[typeof this] && this);
+
 /**
- * Converts `value` to a string if it's not one. An empty string is returned
- * for `null` or `undefined` values.
+ * Used as a reference to the global object.
+ *
+ * The `this` value is used if it's the global object to avoid Greasemonkey's
+ * restricted `window` object, otherwise the `window` object is used.
+ */
+var root = freeGlobal || ((freeWindow !== (thisGlobal && thisGlobal.window)) && freeWindow) || freeSelf || thisGlobal || Function('return this')();
+
+/**
+ * Checks if `value` is a global object.
  *
  * @private
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
+ * @param {*} value The value to check.
+ * @returns {null|Object} Returns `value` if it's a global object, else `null`.
  */
-function baseToString(value) {
-  return value == null ? '' : (value + '');
+function checkGlobal(value) {
+  return (value && value.Object === Object) ? value : null;
 }
 
-module.exports = baseToString;
+module.exports = root;
 
+}).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],39:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
@@ -20321,6 +21453,25 @@ return typeof n.toString!="function"&&typeof(n+"")=="string"}}(),Jn=m();typeof d
 define("modernizr", function(){});
 
 (function ($) {
+    $.fn.checkboxButton = function (onClick) {
+        return this.each(function () {
+            var $this = $(this);
+            $this.on('click', function (e) {
+                var tagName = e.target.tagName;
+                var $checkbox;
+                if (tagName !== "INPUT") {
+                    e.preventDefault();
+                    $checkbox = $(this).find(':checkbox');
+                    $checkbox.prop('checked', !$checkbox.prop('checked'));
+                }
+                else {
+                    $checkbox = $(this);
+                }
+                var checked = $checkbox.is(':checked');
+                onClick.call(this, checked);
+            });
+        });
+    };
     $.fn.disable = function () {
         return this.each(function () {
             var $this = $(this);
@@ -20491,9 +21642,25 @@ define("modernizr", function(){});
         var $self = $(this);
         return parseInt($self.css('marginLeft')) + parseInt($self.css('marginRight'));
     };
+    $.fn.leftMargin = function () {
+        var $self = $(this);
+        return parseInt($self.css('marginLeft'));
+    };
+    $.fn.rightMargin = function () {
+        var $self = $(this);
+        return parseInt($self.css('marginRight'));
+    };
     $.fn.horizontalPadding = function () {
         var $self = $(this);
         return parseInt($self.css('paddingLeft')) + parseInt($self.css('paddingRight'));
+    };
+    $.fn.leftPadding = function () {
+        var $self = $(this);
+        return parseInt($self.css('paddingLeft'));
+    };
+    $.fn.rightPadding = function () {
+        var $self = $(this);
+        return parseInt($self.css('paddingRight'));
     };
     $.mlp = { x: 0, y: 0 }; // Mouse Last Position
     function documentHandler() {
@@ -24385,10 +25552,9 @@ require([
     'xdomainrequest',
     'yepnope',
     'yepnopecss',
-], function (bootstrapper, mediaelementExtension, mediaelementProvider, pdfExtension, pdfProvider, seadragonExtension, seadragonProvider, virtexExtension, virtexProvider, manifesto) {
+], function (bootstrapper, mediaelementExtension, mediaelementProvider, pdfExtension, pdfProvider, seadragonExtension, seadragonProvider, virtexExtension, virtexProvider) {
     // todo: use a compiler flag (when available)
      // this line is removed on build.
-    window.manifesto = manifesto;
     var extensions = {};
     extensions[manifesto.CanvasType.canvas().toString()] = {
         type: seadragonExtension,
