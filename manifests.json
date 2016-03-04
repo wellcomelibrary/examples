@@ -30,11 +30,6 @@
           "label": "Wellcome Apocalypse"
         },
         {
-          "@id": "http://wellcomelibrary.org/iiif/b22674883/manifest",
-          "@type": "sc:Manifest",
-          "label": "Harris's ladies"
-        },
-        {
           "@id": "http://wellcomelibrary.org/iiif/b1948799x/manifest",
           "@type": "sc:Manifest",
           "label": "Crick's letter"
@@ -63,6 +58,11 @@
           "@id": "http://wellcomelibrary.org/iiif/b17564980/manifest",
           "@type": "sc:Manifest",
           "label": "First Thursday Club (login required)"
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b19813508/manifest",
+          "@type": "sc:Manifest",
+          "label": "Kourilsky, Philippe (restricted content)"
         },
         {
           "@id": "http://wellcomelibrary.org/iiif/b1818893x/manifest",
@@ -113,13 +113,13 @@
       "@id": "http://universalviewer.io/manifests.json",
       "@type": "sc:Collection",
       "label": "Internet Archive",
-      "visible": false,
+      "visible": true,
       "manifests": [
         {
-          "@id": "http://iiif.archivelab.org/platowithenglish04platuoft/manifest.json",
+          "@id": "https://iiif.archivelab.org/iiif/principleofrelat00eins/manifest.json",
           "@type": "sc:Manifest",
-          "label": "Plato, with an English translation",
-          "visible": false
+          "label": "The principle of relativity; original papers",
+          "visible": true
         }
       ]
     },
@@ -133,6 +133,11 @@
           "@id": "http://api.bl.uk/metadata/iiif/ark:/81055/vdc_100022545251.0x000002/manifest.json",
           "@type": "sc:Manifest",
           "label": "Anzac bulletin"
+        },
+        {
+          "@id": "http://sanddragon.bl.uk/IIIFMetadataService/or_1459.json",
+          "@type": "sc:Manifest",
+          "label": "Scroll (continuous rtl)"
         }
       ]
     },
@@ -221,6 +226,11 @@
           "@id": "http://digital.library.villanova.edu/Collection/vudl:3/IIIF"
         },
         {
+          "label": "The Holy Bible",
+          "@type": "sc:Collection",
+          "@id": "http://digital.library.villanova.edu/Item/vudl:60609/Manifest"
+        },
+        {
           "label": "LeBlanc Bibliography, Binder 1",
           "@type": "sc:Manifest",
           "@id": "http://digital.library.villanova.edu/Item/vudl:294631/Manifest",
@@ -292,6 +302,19 @@
       "@context": "http://iiif.io/api/presentation/2/context.json",
       "@id": "http://universalviewer.io/manifests.json",
       "@type": "sc:Collection",
+      "label": "Riks Arkivet",
+      "manifests": [
+        {
+          "@id": "https://iiif.riksarkivet.se/arkis!C0000263/manifest",
+          "@type": "sc:Manifest",
+          "label": "Ervalla kyrkoarkiv (canvas metadata)"
+        }
+      ]
+    },
+    {
+      "@context": "http://iiif.io/api/presentation/2/context.json",
+      "@id": "http://universalviewer.io/manifests.json",
+      "@type": "sc:Collection",
       "label": "Qatar Digital Library",
       "manifests": [
         {
@@ -339,6 +362,48 @@
           "@id": "http://files.universalviewer.io/manifests/foundobjects/thekiss.json",
           "@type": "sc:Manifest",
           "label": "The Kiss"
+        },
+        {
+          "@id": "http://files.universalviewer.io/manifests/wellcome/henry.json",
+          "@type": "sc:Manifest",
+          "label": "Henry Wellcome Life Mask",
+          "visible": false
+        },
+        {
+          "@id": "http://files.universalviewer.io/manifests/demo/nefertiti.json",
+          "@type": "sc:Manifest",
+          "label": "Bust of Queen Nefertiti",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "@context": "http://iiif.io/api/presentation/2/context.json",
+      "@id": "http://universalviewer.io/manifests.json",
+      "@type": "sc:Collection",
+      "label": "Level 0",
+      "visible": false,
+      "manifests": [
+        {
+          "@id": "http://files.universalviewer.io/manifests/demo/tetons.json",
+          "@type": "sc:Manifest",
+          "label": "Tetons",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "@context": "http://iiif.io/api/presentation/2/context.json",
+      "@id": "http://universalviewer.io/manifests.json",
+      "@type": "sc:Collection",
+      "label": "IPFS",
+      "visible": false,
+      "manifests": [
+        {
+          "@id": "https://ipfs.io/ipfs/Qmcr4YEo5q7PN2nmXL2YbocEWRmLqMaHauAceTficxMWHR",
+          "@type": "sc:Manifest",
+          "label": "Tetons",
+          "visible": true
         }
       ]
     },

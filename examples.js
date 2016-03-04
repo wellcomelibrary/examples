@@ -58,7 +58,11 @@ $(function() {
 
     function formatUrl(url) {
         var parts = Utils.Urls.GetUrlParts(location.href);
-        return String.format(url, parts.pathname);
+        var pathname = parts.pathname;
+        if (!pathname.startsWith('/')){
+            pathname = '/' + pathname;
+        }
+        return String.format(url, pathname);
     }
 
     function loadManifests(cb) {
@@ -387,6 +391,10 @@ $(function() {
             console.log('uv.onExternalLinkClicked', obj);
         });
 
+        $(document).bind('uv.onFeedback', function (event, obj) {
+            console.log('uv.onFeedback', obj);
+        });
+
         $(document).bind('uv.onHideClickthroughDialogue', function (event, obj) {
             console.log('uv.onHideClickthroughDialogue');
         });
@@ -659,6 +667,10 @@ $(function() {
 
         $(document).bind('seadragonExtension.onModeChanged', function (event, obj) {
             console.log('seadragonExtension.onModeChanged', obj);
+        });
+
+        $(document).bind('seadragonExtension.onMultiSelectionMade', function (event, ids) {
+            console.log('seadragonExtension.onMultiSelectionMade', ids);
         });
 
         $(document).bind('seadragonExtension.onNext', function (event, obj) {
