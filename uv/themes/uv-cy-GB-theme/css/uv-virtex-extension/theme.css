@@ -419,7 +419,7 @@
   border: 2px solid #fff;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb.searchpreview .wrap {
-  border: 2px solid #7FABB7;
+  border: 2px solid #0089ae;
 }
 #app .leftPanel .views .thumbsView .thumbs .thumb span {
   font-size: 11px;
@@ -508,14 +508,6 @@
   text-align: center;
   background: none;
 }
-#app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.multiSelected {
-  border: 2px solid #408294;
-  background: #408294;
-}
-#app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.multiSelected .thumbImage {
-  opacity: 0.35;
-  filter: alpha(opacity=35);
-}
 #app .leftPanel .views .galleryView .main .thumbs .thumb .wrap.loading {
   background-image: url('data:image/gif;base64,R0lGODlhEAAQAPIAAAAAAP///zw8PLy8vP///5ycnHx8fGxsbCH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wCRHZnFVdmgHu2nFwlWCI3WGc3TSWhUFGxTAUkGCbtgENBMJAEJsxgMLWzpEAACH5BAkKAAAALAAAAAAQABAAAAMyCLrc/jDKSatlQtScKdceCAjDII7HcQ4EMTCpyrCuUBjCYRgHVtqlAiB1YhiCnlsRkAAAOwAAAAAAAAAAAA==');
   background-repeat: no-repeat;
@@ -539,7 +531,7 @@
   border: 2px solid #fff;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb.searchpreview .wrap {
-  border: 2px solid #7FABB7;
+  border: 2px solid #0089ae;
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb span {
   font-size: 11px;
@@ -554,17 +546,14 @@
 }
 #app .leftPanel .views .galleryView .main .thumbs .thumb.placeholder .wrap {
   background: url('../../img/uv-contentleftpanel-module/unavailable.png') no-repeat 50% 50%;
-<<<<<<< HEAD
-=======
 }
 #app .leftPanel .views .galleryView .main .thumbs.multiSelect .thumb .wrap.multiSelected {
-  border: 2px solid #14a4c3;
-  background: #14a4c3;
+  border: 2px solid #408294;
+  background: #408294;
 }
 #app .leftPanel .views .galleryView .main .thumbs.multiSelect .thumb .wrap.multiSelected .thumbImage {
   opacity: 0.35;
   filter: alpha(opacity=35);
->>>>>>> upstream/gh-pages
 }
 #app .leftPanel .views .galleryView .main .thumbs.left-to-right .thumb {
   float: left;
@@ -601,8 +590,8 @@
   padding: 0 10px 20px 10px;
 }
 #app .rightPanel .main .items .header {
-  color: #14a4c3;
-  border-bottom: 1px solid #14a4c3;
+  color: #ffb81d;
+  border-bottom: 1px solid #ffb81d;
   font-size: 11px;
   margin: 15px 10px 0 0;
   text-transform: uppercase;
@@ -744,12 +733,12 @@ textarea {
   background-image: none;
 }
 a {
-  color: #7FABB7;
+  color: #0089ae;
   text-decoration: none;
 }
 a:hover,
 a:focus {
-  color: #a0c0c9;
+  color: #00b1e1;
   text-decoration: underline;
 }
 a:focus {
@@ -1105,7 +1094,7 @@ fieldset[disabled] .btn-info.active {
   border-color: #5bc0de;
 }
 .btn-link {
-  color: #7FABB7;
+  color: #0089ae;
   font-weight: normal;
   cursor: pointer;
   border-radius: 0;
@@ -1126,7 +1115,7 @@ fieldset[disabled] .btn-link {
 }
 .btn-link:hover,
 .btn-link:focus {
-  color: #a0c0c9;
+  color: #00b1e1;
   text-decoration: underline;
   background-color: transparent;
 }
@@ -1716,19 +1705,19 @@ input[type=range]:focus::-ms-fill-upper {
   max-width: 100px;
 }
 #app .centerPanel .content .acknowledgements .main a:not(.toggle) {
-  color: #7FABB7;
+  color: #0089ae;
 }
 #app .centerPanel .content .acknowledgements .main a:not(.toggle):link {
-  color: #7FABB7;
+  color: #0089ae;
 }
 #app .centerPanel .content .acknowledgements .main a:not(.toggle):hover {
-  color: #7FABB7;
+  color: #0089ae;
 }
 #app .centerPanel .content .acknowledgements .main a:not(.toggle):visited {
-  color: #7FABB7;
+  color: #0089ae;
 }
 #app .centerPanel .content .acknowledgements .main a:not(.toggle):active {
-  color: #7FABB7;
+  color: #0089ae;
 }
 #app .centerPanel .content .acknowledgements .main .attribution {
   overflow: hidden;
@@ -2178,6 +2167,8 @@ input[type=range]:focus::-ms-fill-upper {
   font-family: sans-serif !important;
   background-color: #000;
   font-size: 12px !important;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 #app .overlay .top .close:link,
 #app .overlay .top .close:visited,
@@ -2245,6 +2236,9 @@ input[type=range]:focus::-ms-fill-upper {
 #app .headerPanel .options .rightOptions .pagingToggle.two-up {
   background: url('../../img/two_up.png');
 }
+#app .leftPanel .views .thumbsView .thumbs .thumb .wrap.loadingFailed {
+  background: url('../../img/padlock.png') no-repeat 50% 50%;
+}
 #app .leftPanel .views .thumbsView .thumbs .thumb.selected .wrap {
   border: 2px solid #ffb81d;
 }
@@ -2252,25 +2246,25 @@ input[type=range]:focus::-ms-fill-upper {
   border: 2px solid #fff;
 }
 #app .rightPanel .main .items .item .text a {
-  color: #7FABB7;
+  color: #0089ae;
   text-decoration: none;
 }
 #app .rightPanel .main .items .item .text a:link,
 #app .rightPanel .main .items .item .text a:visited,
 #app .rightPanel .main .items .item .text a:hover,
 #app .rightPanel .main .items .item .text a:active {
-  color: #7FABB7;
+  color: #0089ae;
   text-decoration: none;
 }
 #app .rightPanel .main .items .item .text a.toggle {
-  color: #7FABB7;
+  color: #0089ae;
   text-decoration: none;
 }
 #app .rightPanel .main .items .item .text a.toggle:link,
 #app .rightPanel .main .items .item .text a.toggle:visited,
 #app .rightPanel .main .items .item .text a.toggle:hover,
 #app .rightPanel .main .items .item .text a.toggle:active {
-  color: #7FABB7;
+  color: #0089ae;
   text-decoration: none;
 }
 #app .footerPanel .searchPager {
