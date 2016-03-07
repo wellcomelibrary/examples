@@ -707,11 +707,20 @@ define('modules/uv-shared-module/ExternalResource',["require", "exports"], funct
         }
         ExternalResource.prototype._parseAuthServices = function (resource) {
             this.clickThroughService = manifesto.getService(resource, manifesto.ServiceProfile.clickThrough().toString());
-            this.restrictedService = manifesto.getService(resource, manifesto.ServiceProfile.restricted().toString());
             this.loginService = manifesto.getService(resource, manifesto.ServiceProfile.login().toString());
-            if (this.loginService) {
+            this.restrictedService = manifesto.getService(resource, manifesto.ServiceProfile.restricted().toString());
+            // todo: create this.preferredService?
+            if (this.clickThroughService) {
+                this.logoutService = this.clickThroughService.getService(manifesto.ServiceProfile.logout().toString());
+                this.tokenService = this.clickThroughService.getService(manifesto.ServiceProfile.token().toString());
+            }
+            else if (this.loginService) {
                 this.logoutService = this.loginService.getService(manifesto.ServiceProfile.logout().toString());
                 this.tokenService = this.loginService.getService(manifesto.ServiceProfile.token().toString());
+            }
+            else if (this.restrictedService) {
+                this.logoutService = this.restrictedService.getService(manifesto.ServiceProfile.logout().toString());
+                this.tokenService = this.restrictedService.getService(manifesto.ServiceProfile.token().toString());
             }
         };
         ExternalResource.prototype.isAccessControlled = function () {
@@ -3197,8 +3206,8 @@ define('modules/uv-moreinforightpanel-module/MoreInfoRightPanel',["require", "ex
             if (this.config.options.aggregateValues) {
                 this.aggregateValues(manifestRenderData, canvasRenderData);
             }
-            this.renderElement(this.$items, manifestRenderData, this.content.manifestHeader);
-            this.renderElement(this.$canvasItems, canvasRenderData, this.content.canvasHeader);
+            this.renderElement(this.$items, manifestRenderData, this.content.manifestHeader, canvasRenderData.length !== 0);
+            this.renderElement(this.$canvasItems, canvasRenderData, this.content.canvasHeader, true);
         };
         MoreInfoRightPanel.prototype.aggregateValues = function (fromData, toData) {
             var values = this.config.options.aggregateValues.split(",");
@@ -3215,11 +3224,11 @@ define('modules/uv-moreinforightpanel-module/MoreInfoRightPanel',["require", "ex
                 });
             });
         };
-        MoreInfoRightPanel.prototype.renderElement = function (element, data, header) {
+        MoreInfoRightPanel.prototype.renderElement = function (element, data, header, renderHeader) {
             var _this = this;
             element.empty();
             if (data.length !== 0) {
-                if (header)
+                if (renderHeader && header)
                     element.append(this.buildHeader(header));
                 _.each(data, function (item) {
                     var built = _this.buildItem(item);
@@ -3280,7 +3289,7 @@ define('modules/uv-moreinforightpanel-module/MoreInfoRightPanel',["require", "ex
 });
 
 define('_Version',["require", "exports"], function (require, exports) {
-    exports.Version = '1.7.6';
+    exports.Version = '1.7.7';
 });
 
 var __extends = (this && this.__extends) || function (d, b) {
