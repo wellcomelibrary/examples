@@ -20,6 +20,11 @@
           "label": "Nervous system in a fruit fly larva"
         },
         {
+          "@id": "http://wellcomelibrary.org/iiif/b23984958/manifest",
+          "@type": "sc:Manifest",
+          "label": "Greenfly Eye"
+        },
+        {
           "@id": "http://wellcomelibrary.org/iiif/b18035978/manifest",
           "@type": "sc:Manifest",
           "label": "The Biocrats"
@@ -43,6 +48,11 @@
           "@id": "http://wellcomelibrary.org/iiif/b20605055/manifest",
           "@type": "sc:Manifest",
           "label": "English folding almanac in Latin (video)"
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b16748967/manifest",
+          "@type": "sc:Manifest",
+          "label": "Entebbe encounter (video with transcript)"
         },
         {
           "@id": "http://wellcomelibrary.org/iiif/b17307922/manifest",
@@ -93,6 +103,21 @@
           "@id": "http://wellcomelibrary.org/iiif/collection/b18031511",
           "@type": "sc:Collection",
           "label": "Biological Basis of Medicine (collection)"
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b21274344/manifest",
+          "@type": "sc:Manifest",
+          "label": "Abnormalities and curiosities of medicine"
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b21072061/manifest",
+          "@type": "sc:Manifest",
+          "label": "An Atlas of Clinical Microscopy (clinical)"
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b13266330/manifest",
+          "@type": "sc:Manifest",
+          "label": "Spiegl de Artzny (manuscript)"
         },
         {
           "@id": "http://showcase.iiif.io/shims/chroniclingamerica/prezi/top.json",
@@ -231,6 +256,11 @@
           "@id": "http://digital.library.villanova.edu/Item/vudl:60609/Manifest"
         },
         {
+          "label": "Letter, To: Ellie From: A. M. Thackara (download options)",
+          "@type": "sc:Manifest",
+          "@id": "http://digital.library.villanova.edu/Item/vudl:30471/Manifest"
+        },
+        {
           "label": "LeBlanc Bibliography, Binder 1",
           "@type": "sc:Manifest",
           "@id": "http://digital.library.villanova.edu/Item/vudl:294631/Manifest",
@@ -285,6 +315,7 @@
       "@id": "http://universalviewer.io/manifests.json",
       "@type": "sc:Collection",
       "label": "World Digital Library",
+      "visible": false,
       "manifests": [
         {
           "@id": "http://www.wdl.org/en/item/14291/iiif/manifest.json",
@@ -400,7 +431,7 @@
       "visible": false,
       "manifests": [
         {
-          "@id": "https://ipfs.io/ipfs/Qmcr4YEo5q7PN2nmXL2YbocEWRmLqMaHauAceTficxMWHR",
+          "@id": "https://ipfs.io/ipfs/QmYomyCpT1vKNovYvTjAStYq31JoaH8xdivjmWcDj5mpM1",
           "@type": "sc:Manifest",
           "label": "Tetons",
           "visible": true
