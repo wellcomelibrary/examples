@@ -1,5 +1,7 @@
 $(function() {
 
+    var loadObj;
+
     $(document).bind('uv.onAcceptTerms', function (event, obj) {
         console.log('uv.onAcceptTerms');
     });
@@ -37,7 +39,11 @@ $(function() {
     });
 
     $(document).bind('uv.onCreated', function (event, obj) {
-        console.log('uv.onCreated');
+        trackEvent('Items', 'Viewed', trackingLabel);
+
+        if (!loadObj.isHomeDomain) {
+            trackVariable(2, 'Embedded', loadObj.domain, 2);
+        }
     });
 
     $(document).bind('uv.onDownArrow', function (event, obj) {
@@ -126,8 +132,8 @@ $(function() {
     });
 
     $(document).bind('uv.onLoad', function (event, obj) {
-        console.log('uv.onLoad', obj);
-        //trackEvent("Player", "Load", trackingLabel);
+        loadObj = obj;
+        trackEvent("Player", "Load", trackingLabel);
     });
 
     $(document).bind('uv.onNotFound', function (event, obj) {
