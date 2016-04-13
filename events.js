@@ -60,7 +60,19 @@ $(function() {
                 trackEvent(files, 'Downloaded - Entire Document As PDF');
                 break;
             case "currentView" :
-
+                trackEvent(files, 'Downloaded - Current View');
+                break;
+            case "wholeImageHighRes" :
+                trackEvent(files, 'Downloaded - Whole Image High Res');
+                break;
+            case "wholeImageLowRes" :
+                trackEvent(files, 'Downloaded - Whole Image Low Res');
+                break;
+            case "entireDocumentAsPdf" :
+                trackEvent(files, 'Downloaded - Entire Document As PDF');
+                break;
+            case "entireDocumentAsText" :
+                trackEvent(files, 'Downloaded - Entire Document As Text');
                 break;
         }
     });
