@@ -2,8 +2,12 @@ $(function() {
 
     var loadObj;
 
+    var items = 'Items';
+    var playerInteractions = 'Player Interactions';
+    var files = 'Files';
+
     $(document).bind('uv.onAcceptTerms', function (event, obj) {
-        console.log('uv.onAcceptTerms');
+        trackEvent(playerInteractions, 'Ts & Cs', 'Accepted');
     });
 
     $(document).bind('uv.onAuthorizationOccurred', function (event, obj) {
@@ -41,8 +45,8 @@ $(function() {
     $(document).bind('uv.onCreated', function (event, obj) {
         trackEvent('Items', 'Viewed', trackingLabel);
 
-        if (!loadObj.isHomeDomain) {
-            trackVariable(2, 'Embedded', loadObj.domain, 2);
+        if (!loadObj.bootstrapper.params.isHomeDomain) {
+            trackVariable(2, 'Embedded', loadObj.bootstrapper.params.domain, 2);
         }
     });
 
@@ -66,8 +70,10 @@ $(function() {
         console.log('uv.onEscape');
     });
 
-    $(document).bind('uv.onExternalLinkClicked', function (event, obj) {
-        console.log('uv.onExternalLinkClicked', obj);
+    $(document).bind('uv.onExternalLinkClicked', function (event, url) {
+        if (url.indexOf('terms-and-conditions') != -1){
+            trackEvent(playerInteractions, 'Ts & Cs', 'Viewed');
+        }
     });
 
     $(document).bind('uv.onFeedback', function (event, obj) {
@@ -79,11 +85,11 @@ $(function() {
     });
 
     $(document).bind('uv.onHideDownloadDialogue', function (event, obj) {
-        console.log('uv.onHideDownloadDialogue');
+        trackEvent(playerInteractions, 'Download', 'Closed');
     });
 
     $(document).bind('uv.onHideEmbedDialogue', function (event, obj) {
-        console.log('uv.onHideEmbedDialogue');
+        trackEvent(playerInteractions, 'Embed', 'Closed');
     });
 
     $(document).bind('uv.onHideExternalContentDialogue', function (event, obj) {
@@ -96,6 +102,10 @@ $(function() {
 
     $(document).bind('uv.onHideInformation', function (event, obj) {
         console.log('uv.onHideInformation');
+    });
+
+    $(document).bind('uv.onHideLoginDialogue', function (event, obj) {
+        trackEvent(playerInteractions, 'Log in', 'Closed');
     });
 
     $(document).bind('uv.onHideOverlay', function (event, obj) {
@@ -217,7 +227,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowDownloadDialogue', function (event, obj) {
-        console.log('uv.onShowDownloadDialogue');
+        trackEvent(playerInteractions, 'Download', 'Opened');
     });
 
     $(document).bind('uv.onShowEmbedDialogue', function (event, obj) {
@@ -241,7 +251,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowLoginDialogue', function (event, obj) {
-        console.log('uv.onShowLoginDialogue');
+        trackEvent(playerInteractions, 'Log in', 'Opened');
     });
 
     $(document).bind('uv.onShowOverlay', function (event, obj) {
@@ -269,7 +279,7 @@ $(function() {
     });
 
     $(document).bind('uv.onViewFullTerms', function (event, obj) {
-        console.log('uv.onViewFullTerms');
+        trackEvent(playerInteractions, 'Ts & Cs', 'Viewed');
     });
 
     $(document).bind('uv.onWindowUnload', function (event, obj) {
@@ -284,24 +294,11 @@ $(function() {
         console.log('seadragonExtension.onCurrentViewUri');
     });
 
-    $(document).bind('seadragonExtension.onDownloadCurrentView', function (event, obj) {
-        console.log('seadragonExtension.onDownloadCurrentView');
-    });
+    $(document).bind('seadragonExtension.onDownload', function (event, obj) {
+        // todo: this depends on enGB language.
+        //if (obj.indexOf(''))
 
-    $(document).bind('seadragonExtension.onDownloadWholeImageHighRes', function (event, obj) {
-        console.log('seadragonExtension.onDownloadWholeImageHighRes');
-    });
-
-    $(document).bind('seadragonExtension.onDownloadWholeImageLowRes', function (event, obj) {
-        console.log('seadragonExtension.onDownloadWholeImageLowRes');
-    });
-
-    $(document).bind('seadragonExtension.onDownloadEntireDocumentAsPDF', function (event, obj) {
-        console.log('seadragonExtension.onDownloadEntireDocumentAsPDF');
-    });
-
-    $(document).bind('seadragonExtension.onDownloadEntireDocumentAsText', function (event, obj) {
-        console.log('seadragonExtension.onDownloadEntireDocumentAsText');
+        trackEvent(files, 'Downloaded - Whole Image High Res');
     });
 
     $(document).bind('seadragonExtension.onFirst', function (event, obj) {
