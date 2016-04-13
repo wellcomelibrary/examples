@@ -55,7 +55,14 @@ $(function() {
     });
 
     $(document).bind('uv.onDownload', function (event, obj) {
-        console.log('uv.onDownload', obj);
+        switch(obj.type){
+            case "entireDocumentAsPdf" :
+                trackEvent(files, 'Downloaded - Entire Document As PDF');
+                break;
+            case "currentView" :
+
+                break;
+        }
     });
 
     $(document).bind('uv.onDrop', function (event, manifestUri) {
@@ -292,13 +299,6 @@ $(function() {
 
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
         console.log('seadragonExtension.onCurrentViewUri');
-    });
-
-    $(document).bind('seadragonExtension.onDownload', function (event, obj) {
-        // todo: this depends on enGB language.
-        //if (obj.indexOf(''))
-
-        trackEvent(files, 'Downloaded - Whole Image High Res');
     });
 
     $(document).bind('seadragonExtension.onFirst', function (event, obj) {
