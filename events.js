@@ -11,27 +11,27 @@ $(function() {
     });
 
     $(document).bind('uv.onAuthorizationOccurred', function (event, obj) {
-        console.log('uv.onAuthorizationOccurred');
+        //console.log('uv.onAuthorizationOccurred');
     });
 
     $(document).bind('uv.onBookmark', function (event, obj) {
-        console.log('uv.onBookmark', obj);
+        //console.log('uv.onBookmark', obj);
     });
 
     $(document).bind('uv.onCanvasIndexChangeFailed', function (event, obj) {
-        console.log('uv.onCanvasIndexChangeFailed');
+        //console.log('uv.onCanvasIndexChangeFailed');
     });
 
     $(document).bind('uv.onCanvasIndexChanged', function (event, obj) {
-        console.log('uv.onCanvasIndexChanged', obj);
+        //console.log('uv.onCanvasIndexChanged', obj);
     });
 
     $(document).bind('uv.onClickthroughOccurred', function (event, obj) {
-        console.log('uv.onClickthroughOccurred');
+        //console.log('uv.onClickthroughOccurred');
     });
 
     $(document).bind('uv.onCloseActiveDialogue', function (event, obj) {
-        console.log('uv.onCloseActiveDialogue');
+        //console.log('uv.onCloseActiveDialogue');
     });
 
     $(document).bind('uv.onCloseLeftPanel', function (event, obj) {
@@ -46,12 +46,12 @@ $(function() {
         trackEvent('Items', 'Viewed', trackingLabel);
 
         if (!loadObj.bootstrapper.params.isHomeDomain) {
-            trackVariable(2, 'Embedded', loadObj.bootstrapper.params.domain, 2);
+            trackVariable('Embedded', loadObj.bootstrapper.params.domain);
         }
     });
 
     $(document).bind('uv.onDownArrow', function (event, obj) {
-        console.log('uv.onDownArrow');
+        //console.log('uv.onDownArrow');
     });
 
     $(document).bind('uv.onDownload', function (event, obj) {
@@ -78,15 +78,15 @@ $(function() {
     });
 
     $(document).bind('uv.onDrop', function (event, manifestUri) {
-        console.log('uv.drop: ' + manifestUri);
+        //console.log('uv.drop: ' + manifestUri);
     });
 
     $(document).bind('uv.onEnd', function (event, obj) {
-        console.log('uv.onEnd');
+        //console.log('uv.onEnd');
     });
 
     $(document).bind('uv.onEscape', function (event, obj) {
-        console.log('uv.onEscape');
+        //console.log('uv.onEscape');
     });
 
     $(document).bind('uv.onExternalLinkClicked', function (event, url) {
@@ -96,11 +96,11 @@ $(function() {
     });
 
     $(document).bind('uv.onFeedback', function (event, obj) {
-        console.log('uv.onFeedback', obj);
+        //console.log('uv.onFeedback', obj);
     });
 
     $(document).bind('uv.onHideClickthroughDialogue', function (event, obj) {
-        console.log('uv.onHideClickthroughDialogue');
+        //console.log('uv.onHideClickthroughDialogue');
     });
 
     $(document).bind('uv.onHideDownloadDialogue', function (event, obj) {
@@ -112,15 +112,15 @@ $(function() {
     });
 
     $(document).bind('uv.onHideExternalContentDialogue', function (event, obj) {
-        console.log('uv.onHideExternalContentDialogue');
+        //console.log('uv.onHideExternalContentDialogue');
     });
 
     $(document).bind('uv.onHideGenericDialogue', function (event, obj) {
-        console.log('uv.onHideGenericDialogue');
+        //console.log('uv.onHideGenericDialogue');
     });
 
     $(document).bind('uv.onHideInformation', function (event, obj) {
-        console.log('uv.onHideInformation');
+        //console.log('uv.onHideInformation');
     });
 
     $(document).bind('uv.onHideLoginDialogue', function (event, obj) {
@@ -128,36 +128,36 @@ $(function() {
     });
 
     $(document).bind('uv.onHideOverlay', function (event, obj) {
-        console.log('uv.onHideOverlay');
+        //console.log('uv.onHideOverlay');
     });
 
     $(document).bind('uv.onHideSettingsDialogue', function (event, obj) {
         // uv uses onHideOverlay
-        console.log('uv.onHideSettingsDialogue');
+        //console.log('uv.onHideSettingsDialogue');
     });
 
     $(document).bind('uv.onHome', function (event, obj) {
-        console.log('uv.onHome');
+        //console.log('uv.onHome');
     });
 
     $(document).bind('uv.onLeftArrow', function (event, obj) {
-        console.log('uv.onLeftArrow');
+        //console.log('uv.onLeftArrow');
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullFinish', function (event, obj) {
-        console.log('uv.onLeftPanelCollapseFullFinish');
+        //console.log('uv.onLeftPanelCollapseFullFinish');
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullStart', function (event, obj) {
-        console.log('uv.onLeftPanelCollapseFullStart');
+        //console.log('uv.onLeftPanelCollapseFullStart');
     });
 
     $(document).bind('uv.onLeftPanelExpandFullFinish', function (event, obj) {
-        console.log('uv.onLeftPanelExpandFullFinish');
+        //console.log('uv.onLeftPanelExpandFullFinish');
     });
 
     $(document).bind('uv.onLeftPanelExpandFullStart', function (event, obj) {
-        console.log('uv.onLeftPanelExpandFullStart');
+        //console.log('uv.onLeftPanelExpandFullStart');
     });
 
     $(document).bind('uv.onLoad', function (event, obj) {
@@ -166,11 +166,11 @@ $(function() {
     });
 
     $(document).bind('uv.onNotFound', function (event, obj) {
-        console.log('uv.onNotFound');
+        //console.log('uv.onNotFound');
     });
 
     $(document).bind('uv.onMinus', function (event, obj) {
-        console.log('uv.onMinus');
+        //console.log('uv.onMinus');
     });
 
     $(document).bind('uv.onOpenLeftPanel', function (event, obj) {
@@ -178,7 +178,7 @@ $(function() {
     });
 
     $(document).bind('uv.onOpenExternalResource', function (event, obj) {
-        console.log('uv.onOpenExternalResource');
+        //console.log('uv.onOpenExternalResource');
     });
 
     $(document).bind('uv.onOpenRightPanel', function (event, obj) {
@@ -186,63 +186,63 @@ $(function() {
     });
 
     $(document).bind('uv.onPageDown', function (event, obj) {
-        console.log('uv.onPageDown');
+        //console.log('uv.onPageDown');
     });
 
     $(document).bind('uv.onPageUp', function (event, obj) {
-        console.log('uv.onPageUp');
+        //console.log('uv.onPageUp');
     });
 
     $(document).bind('uv.onPlus', function (event, obj) {
-        console.log('uv.onPlus');
+        //console.log('uv.onPlus');
     });
 
     $(document).bind('uv.onRedirect', function (event, obj) {
-        console.log('uv.onRedirect');
+        //console.log('uv.onRedirect');
     });
 
     $(document).bind('uv.onRefresh', function (event, obj) {
-        console.log('uv.onRefresh');
+        //console.log('uv.onRefresh');
     });
 
     $(document).bind('uv.onResourceDegraded', function (event, obj) {
-        console.log('uv.onResourceDegraded');
+        //console.log('uv.onResourceDegraded');
     });
 
     $(document).bind('uv.onReturn', function (event, obj) {
-        console.log('uv.onReturn');
+        //console.log('uv.onReturn');
     });
 
     $(document).bind('uv.onRightArrow', function (event, obj) {
-        console.log('uv.onRightArrow');
+        //console.log('uv.onRightArrow');
     });
 
     $(document).bind('uv.onRightPanelCollapseFullFinish', function (event, obj) {
-        console.log('uv.onRightPanelCollapseFullFinish');
+        //console.log('uv.onRightPanelCollapseFullFinish');
     });
 
     $(document).bind('uv.onRightPanelCollapseFullStart', function (event, obj) {
-        console.log('uv.onRightPanelCollapseFullStart');
+        //console.log('uv.onRightPanelCollapseFullStart');
     });
 
     $(document).bind('uv.onRightPanelExpandFullFinish', function (event, obj) {
-        console.log('uv.onRightPanelExpandFullFinish');
+        //console.log('uv.onRightPanelExpandFullFinish');
     });
 
     $(document).bind('uv.onRightPanelExpandFullStart', function (event, obj) {
-        console.log('uv.onRightPanelExpandFullStart');
+        //console.log('uv.onRightPanelExpandFullStart');
     });
 
     $(document).bind('uv.onSequenceIndexChanged', function (event, sequenceIndex) {
-        console.log('uv.onSequenceIndexChanged: ' + sequenceIndex);
+        //console.log('uv.onSequenceIndexChanged: ' + sequenceIndex);
     });
 
     $(document).bind('uv.onSettingsChanged', function (event, settings) {
-        console.log('uv.onSettingsChanged', settings);
+        //console.log('uv.onSettingsChanged', settings);
     });
 
     $(document).bind('uv.onShowClickThroughDialogue', function (event, obj) {
-        console.log('uv.onShowClickThroughDialogue');
+        //console.log('uv.onShowClickThroughDialogue');
     });
 
     $(document).bind('uv.onShowDownloadDialogue', function (event, obj) {
@@ -254,19 +254,19 @@ $(function() {
     });
 
     $(document).bind('uv.onShowExternalContentDialogue', function (event, obj) {
-        console.log('uv.onShowExternalContentDialogue');
+        //console.log('uv.onShowExternalContentDialogue');
     });
 
     $(document).bind('uv.onShowGenericDialogue', function (event, obj) {
-        console.log('uv.onShowGenericDialogue');
+        //console.log('uv.onShowGenericDialogue');
     });
 
     $(document).bind('uv.onShowHelpDialogue', function (event, obj) {
-        console.log('uv.onShowHelpDialogue');
+        //console.log('uv.onShowHelpDialogue');
     });
 
     $(document).bind('uv.onShowInformation', function (event, obj) {
-        console.log('uv.onShowInformation');
+        //console.log('uv.onShowInformation');
     });
 
     $(document).bind('uv.onShowLoginDialogue', function (event, obj) {
@@ -274,15 +274,15 @@ $(function() {
     });
 
     $(document).bind('uv.onShowOverlay', function (event, obj) {
-        console.log('uv.onShowOverlay');
+        //console.log('uv.onShowOverlay');
     });
 
     $(document).bind('uv.onShowSettingsDialogue', function (event, obj) {
-        console.log('uv.onShowSettingsDialogue');
+        //console.log('uv.onShowSettingsDialogue');
     });
 
     $(document).bind('uv.onThumbSelected', function (event, obj) {
-        console.log('uv.onThumbSelected');
+        //console.log('uv.onThumbSelected');
     });
 
     $(document).bind('uv.onToggleFullScreen', function (event, obj) {
@@ -294,11 +294,11 @@ $(function() {
     });
 
     $(document).bind('uv.onUpArrow', function (event, obj) {
-        console.log('uv.onUpArrow');
+        //console.log('uv.onUpArrow');
     });
 
     $(document).bind('uv.onUpdateSettings', function (event, obj) {
-        console.log('uv.onUpdateSettings');
+        //console.log('uv.onUpdateSettings');
     });
 
     $(document).bind('uv.onViewFullTerms', function (event, obj) {
@@ -306,47 +306,47 @@ $(function() {
     });
 
     $(document).bind('uv.onWindowUnload', function (event, obj) {
-        console.log('uv.onWindowUnload');
+        //console.log('uv.onWindowUnload');
     });
 
     $(document).bind('seadragonExtension.onClearSearch', function (event, obj) {
-        console.log('seadragonExtension.onClearSearch');
+        //console.log('seadragonExtension.onClearSearch');
     });
 
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
-        console.log('seadragonExtension.onCurrentViewUri');
+        //console.log('seadragonExtension.onCurrentViewUri');
     });
 
     $(document).bind('seadragonExtension.onFirst', function (event, obj) {
-        console.log('seadragonExtension.onFirst');
+        //console.log('seadragonExtension.onFirst');
     });
 
     $(document).bind('seadragonExtension.onGalleryThumbSelected', function (event, obj) {
-        console.log('seadragonExtension.onGalleryThumbSelected');
+        //console.log('seadragonExtension.onGalleryThumbSelected');
     });
 
     $(document).bind('seadragonExtension.onImageSearch', function (event, obj) {
-        console.log('seadragonExtension.onImageSearch');
+        //console.log('seadragonExtension.onImageSearch');
     });
 
     $(document).bind('seadragonExtension.onLast', function (event, obj) {
-        console.log('seadragonExtension.onLast');
+        //console.log('seadragonExtension.onLast');
     });
 
     $(document).bind('seadragonExtension.onModeChanged', function (event, obj) {
-        console.log('seadragonExtension.onModeChanged', obj);
+        //console.log('seadragonExtension.onModeChanged', obj);
     });
 
     $(document).bind('seadragonExtension.onMultiSelectionMade', function (event, ids) {
-        console.log('seadragonExtension.onMultiSelectionMade', ids);
+        //console.log('seadragonExtension.onMultiSelectionMade', ids);
     });
 
     $(document).bind('seadragonExtension.onNext', function (event, obj) {
-        console.log('seadragonExtension.onNext');
+        //console.log('seadragonExtension.onNext');
     });
 
     $(document).bind('seadragonExtension.onNextSearchResult', function (event, obj) {
-        console.log('seadragonExtension.onNextSearchResult');
+        //console.log('seadragonExtension.onNextSearchResult');
     });
 
     $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
@@ -358,67 +358,67 @@ $(function() {
     });
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
-        console.log('seadragonExtension.onPageSearch');
+        //console.log('seadragonExtension.onPageSearch');
     });
 
     $(document).bind('seadragonExtension.onPrev', function (event, obj) {
-        console.log('seadragonExtension.onPrev');
+        //console.log('seadragonExtension.onPrev');
     });
 
     $(document).bind('seadragonExtension.onPrevSearchResult', function (event, obj) {
-        console.log('seadragonExtension.onPrevSearchResult');
+        //console.log('seadragonExtension.onPrevSearchResult');
     });
 
     $(document).bind('seadragonExtension.onAnimation', function (event, obj) {
-        console.log('seadragonExtension.onAnimation');
+        //console.log('seadragonExtension.onAnimation');
     });
 
     $(document).bind('seadragonExtension.onAnimationfinish', function (event, obj) {
-        console.log('seadragonExtension.onAnimationfinish');
+        //console.log('seadragonExtension.onAnimationfinish');
     });
 
     $(document).bind('seadragonExtension.onAnimationStart', function (event, obj) {
-        console.log('seadragonExtension.onAnimationStart');
+        //console.log('seadragonExtension.onAnimationStart');
     });
 
     $(document).bind('seadragonExtension.onOpen', function (event, obj) {
-        console.log('seadragonExtension.onOpen');
+        //console.log('seadragonExtension.onOpen');
     });
 
     $(document).bind('seadragonExtension.onSearchPreviewStart', function (event, obj) {
-        console.log('seadragonExtension.onSearchPreviewStart');
+        //console.log('seadragonExtension.onSearchPreviewStart');
     });
 
     $(document).bind('seadragonExtension.onSearchPreviewFinish', function (event, obj) {
-        console.log('seadragonExtension.onSearchPreviewFinish');
+        //console.log('seadragonExtension.onSearchPreviewFinish');
     });
 
     $(document).bind('seadragonExtension.onRotation', function (event, obj) {
-        console.log('seadragonExtension.onRotation');
+        //console.log('seadragonExtension.onRotation');
     });
 
     $(document).bind('seadragonExtension.onSearch', function (event, obj) {
-        console.log('seadragonExtension.onSearch', obj);
+        //console.log('seadragonExtension.onSearch', obj);
     });
 
     $(document).bind('seadragonExtension.onSearchResults', function (event, obj) {
-        console.log('seadragonExtension.onSearchResults', obj);
+        //console.log('seadragonExtension.onSearchResults', obj);
     });
 
     $(document).bind('seadragonExtension.onSearchResultsEmpty', function (event, obj) {
-        console.log('seadragonExtension.onSearchResultsEmpty');
+        //console.log('seadragonExtension.onSearchResultsEmpty');
     });
 
     $(document).bind('seadragonExtension.onTreeNodeSelected', function (event, obj) {
-        console.log('seadragonExtension.onTreeNodeSelected', obj);
+        //console.log('seadragonExtension.onTreeNodeSelected', obj);
     });
 
     $(document).bind('seadragonExtension.onViewPage', function (event, obj) {
-        console.log('seadragonExtension.onViewPage', obj);
+        //console.log('seadragonExtension.onViewPage', obj);
     });
 
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
-        console.log('seadragonExtension.onCurrentViewUri', obj);
+        //console.log('seadragonExtension.onCurrentViewUri', obj);
     });
 
     $(document).bind('mediaelementExtension.onMediaEnded', function (event, obj) {
