@@ -91,7 +91,7 @@ $(function() {
 
     $(document).bind('uv.onExternalLinkClicked', function (event, url) {
         if (url.indexOf('terms-and-conditions') != -1){
-            trackEvent(playerInteractions, 'Ts & Cs', 'Viewed');
+            trackEvent(playerInteractions, 'Ts & Cs', 'Loaded');
         }
     });
 
@@ -313,6 +313,11 @@ $(function() {
         //console.log('seadragonExtension.onClearSearch');
     });
 
+    $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
+        trackEvent(playerInteractions, 'Thumbs', 'Opened');
+        trackEvent(playerInteractions, 'Tree', 'Closed');
+    });
+
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
         //console.log('seadragonExtension.onCurrentViewUri');
     });
@@ -355,6 +360,7 @@ $(function() {
 
     $(document).bind('seadragonExtension.onOpenTreeView', function (event, obj) {
         trackEvent(playerInteractions, 'Tree', 'Opened');
+        trackEvent(playerInteractions, 'Thumbs', 'Closed');
     });
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
