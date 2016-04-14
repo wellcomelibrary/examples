@@ -35,11 +35,11 @@ $(function() {
     });
 
     $(document).bind('uv.onCloseLeftPanel', function (event, obj) {
-        console.log('uv.onCloseLeftPanel');
+        trackEvent(playerInteractions, 'Left Panel', 'Closed');
     });
 
     $(document).bind('uv.onCloseRightPanel', function (event, obj) {
-        console.log('uv.onCloseRightPanel');
+        trackEvent(playerInteractions, 'Right Panel', 'Closed');
     });
 
     $(document).bind('uv.onCreated', function (event, obj) {
@@ -174,7 +174,7 @@ $(function() {
     });
 
     $(document).bind('uv.onOpenLeftPanel', function (event, obj) {
-        console.log('uv.onOpenLeftPanel');
+        trackEvent(playerInteractions, 'Left Panel', 'Opened');
     });
 
     $(document).bind('uv.onOpenExternalResource', function (event, obj) {
@@ -182,7 +182,7 @@ $(function() {
     });
 
     $(document).bind('uv.onOpenRightPanel', function (event, obj) {
-        console.log('uv.onOpenRightPanel');
+        trackEvent(playerInteractions, 'Right Panel', 'Opened');
     });
 
     $(document).bind('uv.onPageDown', function (event, obj) {
@@ -250,7 +250,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowEmbedDialogue', function (event, obj) {
-        console.log('uv.onShowEmbedDialogue');
+        trackEvent(playerInteractions, 'Embed', 'Opened');
     });
 
     $(document).bind('uv.onShowExternalContentDialogue', function (event, obj) {
@@ -286,7 +286,11 @@ $(function() {
     });
 
     $(document).bind('uv.onToggleFullScreen', function (event, obj) {
-        console.log('uv.onToggleFullScreen', obj.isFullScreen);
+        if (obj.isFullScreen) {
+            trackEvent(playerInteractions, 'Full Screen', 'Enter');
+        } else {
+            trackEvent(playerInteractions, 'Full Screen', 'Exit');
+        }
     });
 
     $(document).bind('uv.onUpArrow', function (event, obj) {
@@ -346,11 +350,11 @@ $(function() {
     });
 
     $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
-        console.log('seadragonExtension.onOpenThumbsView');
+        trackEvent(playerInteractions, 'Thumbs', 'Opened');
     });
 
     $(document).bind('seadragonExtension.onOpenTreeView', function (event, obj) {
-        console.log('seadragonExtension.onOpenTreeView');
+        trackEvent(playerInteractions, 'Tree', 'Opened');
     });
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
@@ -418,15 +422,15 @@ $(function() {
     });
 
     $(document).bind('mediaelementExtension.onMediaEnded', function (event, obj) {
-        console.log('mediaelementExtension.onMediaEnded');
+        trackEvent(playerInteractions, 'Ended');
     });
 
     $(document).bind('mediaelementExtension.onMediaPaused', function (event, obj) {
-        console.log('mediaelementExtension.onMediaPaused');
+        trackEvent(playerInteractions, 'Pause');
     });
 
     $(document).bind('mediaelementExtension.onMediaPlayed', function (event, obj) {
-        console.log('mediaelementExtension.onMediaPlayed');
+        trackEvent(playerInteractions, 'Play');
     });
 
 });
