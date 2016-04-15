@@ -20,7 +20,7 @@ $(function() {
     var files = 'Files';
 
     $(document).bind('uv.onAcceptTerms', function (event, obj) {
-        trackEvent(playerInteractions, 'Ts & Cs', 'Accepted');
+        trackEvent(playerInteractions, 'Ts & Cs', 'Accepted, ' + trackingLabel);
     });
 
     $(document).bind('uv.onAuthorizationOccurred', function (event, obj) {
@@ -48,11 +48,11 @@ $(function() {
     });
 
     $(document).bind('uv.onCloseLeftPanel', function (event, obj) {
-        trackEvent(playerInteractions, 'Left Panel', 'Closed');
+        trackEvent(playerInteractions, 'Left Panel', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onCloseRightPanel', function (event, obj) {
-        trackEvent(playerInteractions, 'Right Panel', 'Closed');
+        trackEvent(playerInteractions, 'Right Panel', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onCreated', function (event, obj) {
@@ -70,22 +70,22 @@ $(function() {
     $(document).bind('uv.onDownload', function (event, obj) {
         switch(obj.type){
             case "entireDocumentAsPdf" :
-                trackEvent(files, 'Downloaded - Entire Document As PDF');
+                trackEvent(files, 'Downloaded - Entire Document As PDF, ' + trackingLabel);
                 break;
             case "currentView" :
-                trackEvent(files, 'Downloaded - Current View');
+                trackEvent(files, 'Downloaded - Current View, ' + trackingLabel);
                 break;
             case "wholeImageHighRes" :
-                trackEvent(files, 'Downloaded - Whole Image High Res');
+                trackEvent(files, 'Downloaded - Whole Image High Res, ' + trackingLabel);
                 break;
             case "wholeImageLowRes" :
-                trackEvent(files, 'Downloaded - Whole Image Low Res');
+                trackEvent(files, 'Downloaded - Whole Image Low Res, ' + trackingLabel);
                 break;
             case "entireDocumentAsPdf" :
-                trackEvent(files, 'Downloaded - Entire Document As PDF');
+                trackEvent(files, 'Downloaded - Entire Document As PDF, ' + trackingLabel);
                 break;
             case "entireDocumentAsText" :
-                trackEvent(files, 'Downloaded - Entire Document As Text');
+                trackEvent(files, 'Downloaded - Entire Document As Text, ' + trackingLabel);
                 break;
         }
     });
@@ -104,7 +104,7 @@ $(function() {
 
     $(document).bind('uv.onExternalLinkClicked', function (event, url) {
         if (url.indexOf('terms-and-conditions') != -1){
-            trackEvent(playerInteractions, 'Ts & Cs', 'Loaded');
+            trackEvent(playerInteractions, 'Ts & Cs', 'Loaded, ' + trackingLabel);
         }
     });
 
@@ -117,11 +117,11 @@ $(function() {
     });
 
     $(document).bind('uv.onHideDownloadDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Download', 'Closed');
+        trackEvent(playerInteractions, 'Download', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onHideEmbedDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Embed', 'Closed');
+        trackEvent(playerInteractions, 'Embed', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onHideExternalContentDialogue', function (event, obj) {
@@ -137,7 +137,7 @@ $(function() {
     });
 
     $(document).bind('uv.onHideLoginDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Log in', 'Closed');
+        trackEvent(playerInteractions, 'Log in', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onHideOverlay', function (event, obj) {
@@ -146,7 +146,7 @@ $(function() {
 
     $(document).bind('uv.onHideSettingsDialogue', function (event, obj) {
         // uv uses onHideOverlay
-        trackEvent(playerInteractions, 'Settings', 'Closed');
+        trackEvent(playerInteractions, 'Settings', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onHome', function (event, obj) {
@@ -158,7 +158,7 @@ $(function() {
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullFinish', function (event, obj) {
-        trackEvent(playerInteractions, 'Left Panel', 'Collapsed');
+        trackEvent(playerInteractions, 'Left Panel', 'Collapsed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullStart', function (event, obj) {
@@ -166,7 +166,7 @@ $(function() {
     });
 
     $(document).bind('uv.onLeftPanelExpandFullFinish', function (event, obj) {
-        trackEvent(playerInteractions, 'Left Panel', 'Expanded');
+        trackEvent(playerInteractions, 'Left Panel', 'Expanded, ' + trackingLabel);
     });
 
     $(document).bind('uv.onLeftPanelExpandFullStart', function (event, obj) {
@@ -187,7 +187,7 @@ $(function() {
     });
 
     $(document).bind('uv.onOpenLeftPanel', function (event, obj) {
-        trackEvent(playerInteractions, 'Left Panel', 'Opened');
+        trackEvent(playerInteractions, 'Left Panel', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onOpenExternalResource', function (event, obj) {
@@ -195,7 +195,7 @@ $(function() {
     });
 
     $(document).bind('uv.onOpenRightPanel', function (event, obj) {
-        trackEvent(playerInteractions, 'Right Panel', 'Opened');
+        trackEvent(playerInteractions, 'Right Panel', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onPageDown', function (event, obj) {
@@ -252,22 +252,22 @@ $(function() {
 
     $(document).bind('uv.onSettingsChanged', function (event, settings) {
         if (settings.pagingEnabled){
-            trackEvent(playerInteractions,  'Two Page View', 'Opened');
+            trackEvent(playerInteractions,  'Two Page View', 'Opened, ' + trackingLabel);
         } else {
-            trackEvent(playerInteractions,  'Two Page View', 'Closed');
+            trackEvent(playerInteractions,  'Two Page View', 'Closed, ' + trackingLabel);
         }
     });
 
     $(document).bind('uv.onShowClickThroughDialogue', function (event, obj) {
-        trackEvent(playerInteractions,  'Ts & Cs', 'Viewed');
+        trackEvent(playerInteractions,  'Ts & Cs', 'Viewed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onShowDownloadDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Download', 'Opened');
+        trackEvent(playerInteractions, 'Download', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onShowEmbedDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Embed', 'Opened');
+        trackEvent(playerInteractions, 'Embed', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onShowExternalContentDialogue', function (event, obj) {
@@ -287,7 +287,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowLoginDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Log in', 'Opened');
+        trackEvent(playerInteractions, 'Log in', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onShowOverlay', function (event, obj) {
@@ -295,7 +295,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowSettingsDialogue', function (event, obj) {
-        trackEvent(playerInteractions, 'Settings', 'Opened');
+        trackEvent(playerInteractions, 'Settings', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('uv.onThumbSelected', function (event, obj) {
@@ -304,9 +304,9 @@ $(function() {
 
     $(document).bind('uv.onToggleFullScreen', function (event, obj) {
         if (obj.isFullScreen) {
-            trackEvent(playerInteractions, 'Full Screen', 'Enter');
+            trackEvent(playerInteractions, 'Full Screen', 'Enter, ' + trackingLabel);
         } else {
-            trackEvent(playerInteractions, 'Full Screen', 'Exit');
+            trackEvent(playerInteractions, 'Full Screen', 'Exit, ' + trackingLabel);
         }
     });
 
@@ -319,7 +319,7 @@ $(function() {
     });
 
     $(document).bind('uv.onViewFullTerms', function (event, obj) {
-        trackEvent(playerInteractions, 'Ts & Cs', 'Viewed');
+        trackEvent(playerInteractions, 'Ts & Cs', 'Viewed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onWindowUnload', function (event, obj) {
@@ -331,8 +331,8 @@ $(function() {
     });
 
     $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
-        trackEvent(playerInteractions, 'Thumbs', 'Opened');
-        trackEvent(playerInteractions, 'Tree', 'Closed');
+        trackEvent(playerInteractions, 'Thumbs', 'Opened, ' + trackingLabel);
+        trackEvent(playerInteractions, 'Tree', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
@@ -372,12 +372,12 @@ $(function() {
     });
 
     $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
-        trackEvent(playerInteractions, 'Thumbs', 'Opened');
+        trackEvent(playerInteractions, 'Thumbs', 'Opened, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onOpenTreeView', function (event, obj) {
-        trackEvent(playerInteractions, 'Tree', 'Opened');
-        trackEvent(playerInteractions, 'Thumbs', 'Closed');
+        trackEvent(playerInteractions, 'Tree', 'Opened, ' + trackingLabel);
+        trackEvent(playerInteractions, 'Thumbs', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
@@ -445,15 +445,15 @@ $(function() {
     });
 
     $(document).bind('mediaelementExtension.onMediaEnded', function (event, obj) {
-        trackEvent(playerInteractions, 'Ended');
+        trackEvent(playerInteractions, 'Ended, ' + trackingLabel);
     });
 
     $(document).bind('mediaelementExtension.onMediaPaused', function (event, obj) {
-        trackEvent(playerInteractions, 'Pause');
+        trackEvent(playerInteractions, 'Pause, ' + trackingLabel);
     });
 
     $(document).bind('mediaelementExtension.onMediaPlayed', function (event, obj) {
-        trackEvent(playerInteractions, 'Play');
+        trackEvent(playerInteractions, 'Play, ' + trackingLabel);
     });
 
 });
