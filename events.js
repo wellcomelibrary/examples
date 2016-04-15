@@ -146,7 +146,7 @@ $(function() {
 
     $(document).bind('uv.onHideSettingsDialogue', function (event, obj) {
         // uv uses onHideOverlay
-        //console.log('uv.onHideSettingsDialogue');
+        trackEvent(playerInteractions, 'Settings', 'Closed');
     });
 
     $(document).bind('uv.onHome', function (event, obj) {
@@ -158,7 +158,7 @@ $(function() {
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullFinish', function (event, obj) {
-        //console.log('uv.onLeftPanelCollapseFullFinish');
+        trackEvent(playerInteractions, 'Left Panel', 'Collapsed');
     });
 
     $(document).bind('uv.onLeftPanelCollapseFullStart', function (event, obj) {
@@ -166,7 +166,7 @@ $(function() {
     });
 
     $(document).bind('uv.onLeftPanelExpandFullFinish', function (event, obj) {
-        //console.log('uv.onLeftPanelExpandFullFinish');
+        trackEvent(playerInteractions, 'Left Panel', 'Expanded');
     });
 
     $(document).bind('uv.onLeftPanelExpandFullStart', function (event, obj) {
@@ -251,7 +251,11 @@ $(function() {
     });
 
     $(document).bind('uv.onSettingsChanged', function (event, settings) {
-        //console.log('uv.onSettingsChanged', settings);
+        if (settings.pagingEnabled){
+            trackEvent(playerInteractions,  'Two Page View', 'Opened');
+        } else {
+            trackEvent(playerInteractions,  'Two Page View', 'Closed');
+        }
     });
 
     $(document).bind('uv.onShowClickThroughDialogue', function (event, obj) {
@@ -291,7 +295,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowSettingsDialogue', function (event, obj) {
-        //console.log('uv.onShowSettingsDialogue');
+        trackEvent(playerInteractions, 'Settings', 'Opened');
     });
 
     $(document).bind('uv.onThumbSelected', function (event, obj) {
