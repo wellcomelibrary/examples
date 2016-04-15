@@ -242,7 +242,7 @@ $(function() {
     });
 
     $(document).bind('uv.onShowClickThroughDialogue', function (event, obj) {
-        //console.log('uv.onShowClickThroughDialogue');
+        trackEvent(playerInteractions,  'Ts & Cs', 'Viewed');
     });
 
     $(document).bind('uv.onShowDownloadDialogue', function (event, obj) {
