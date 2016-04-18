@@ -14,8 +14,8 @@ function trackVariable(name, value) {
 $(function() {
 
     var loadObj;
+    var settings = {};
 
-    var items = 'Items';
     var playerInteractions = 'Player Interactions';
     var files = 'Files';
 
@@ -250,11 +250,30 @@ $(function() {
         //console.log('uv.onSequenceIndexChanged: ' + sequenceIndex);
     });
 
-    $(document).bind('uv.onSettingsChanged', function (event, settings) {
-        if (settings.pagingEnabled){
-            trackEvent(playerInteractions,  'Two Page View', 'Opened, ' + trackingLabel);
-        } else {
-            trackEvent(playerInteractions,  'Two Page View', 'Closed, ' + trackingLabel);
+    $(document).bind('uv.onSettingsChanged', function (event, obj) {
+
+        if (obj.pagingEnabled !== settings.pagingEnabled) {
+            if (obj.pagingEnabled) {
+                trackEvent(playerInteractions, 'Two Page View', 'Opened, ' + trackingLabel);
+            } else {
+                trackEvent(playerInteractions, 'Two Page View', 'Closed, ' + trackingLabel);
+            }
+        }
+
+        if (obj.navigatorEnabled !== settings.navigatorEnabled) {
+            if (obj.navigatorEnabled) {
+                trackEvent(playerInteractions, 'Navigator Enabled', 'True, ' + trackingLabel);
+            } else {
+                trackEvent(playerInteractions, 'Navigator Enabled', 'False, ' + trackingLabel);
+            }
+        }
+
+        if (obj.preserveViewport !== settings.preserveViewport) {
+            if (obj.preserveViewport) {
+                trackEvent(playerInteractions, 'Preserve Viewport Enabled', 'True, ' + trackingLabel);
+            } else {
+                trackEvent(playerInteractions, 'Preserve Viewport Enabled', 'False, ' + trackingLabel);
+            }
         }
     });
 
@@ -341,6 +360,14 @@ $(function() {
 
     $(document).bind('seadragonExtension.onFirst', function (event, obj) {
         //console.log('seadragonExtension.onFirst');
+    });
+
+    $(document).bind('seadragonExtension.onGalleryDecreaseSize', function (event, obj) {
+        trackEvent(playerInteractions, 'Thumbnails size', 'Smaller, ' + trackingLabel);
+    });
+
+    $(document).bind('seadragonExtension.onGalleryIncreaseSize', function (event, obj) {
+        trackEvent(playerInteractions, 'Thumbnails size', 'Larger, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onGalleryThumbSelected', function (event, obj) {
