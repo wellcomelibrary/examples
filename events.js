@@ -14,7 +14,7 @@ function trackVariable(name, value) {
 $(function() {
 
     var loadObj;
-    var settings = {};
+    var settings;
 
     var playerInteractions = 'Player Interactions';
     var files = 'Files';
@@ -175,6 +175,7 @@ $(function() {
 
     $(document).bind('uv.onLoad', function (event, obj) {
         loadObj = obj;
+        settings = jQuery.extend(true, {}, obj.settings);
         trackEvent("Player", "Load", trackingLabel);
     });
 
@@ -252,7 +253,7 @@ $(function() {
 
     $(document).bind('uv.onSettingsChanged', function (event, obj) {
 
-        if (obj.pagingEnabled !== settings.pagingEnabled) {
+        if (settings.pagingEnabled !== obj.pagingEnabled) {
             if (obj.pagingEnabled) {
                 trackEvent(playerInteractions, 'Two Page View', 'Opened, ' + trackingLabel);
             } else {
@@ -260,7 +261,7 @@ $(function() {
             }
         }
 
-        if (obj.navigatorEnabled !== settings.navigatorEnabled) {
+        if (settings.navigatorEnabled !== obj.navigatorEnabled) {
             if (obj.navigatorEnabled) {
                 trackEvent(playerInteractions, 'Navigator Enabled', 'True, ' + trackingLabel);
             } else {
@@ -268,13 +269,15 @@ $(function() {
             }
         }
 
-        if (obj.preserveViewport !== settings.preserveViewport) {
+        if (settings.preserveViewport !== obj.preserveViewport) {
             if (obj.preserveViewport) {
                 trackEvent(playerInteractions, 'Preserve Viewport Enabled', 'True, ' + trackingLabel);
             } else {
                 trackEvent(playerInteractions, 'Preserve Viewport Enabled', 'False, ' + trackingLabel);
             }
         }
+
+        settings = jQuery.extend(true, {}, obj);
     });
 
     $(document).bind('uv.onShowClickThroughDialogue', function (event, obj) {
