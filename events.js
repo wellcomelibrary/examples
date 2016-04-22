@@ -70,22 +70,22 @@ $(function() {
     $(document).bind('uv.onDownload', function (event, obj) {
         switch(obj.type){
             case "entireDocumentAsPdf" :
-                trackEvent(files, 'Downloaded - Entire Document As PDF, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Entire Document As PDF', trackingLabel);
                 break;
             case "currentView" :
-                trackEvent(files, 'Downloaded - Current View, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Current View', trackingLabel);
                 break;
             case "wholeImageHighRes" :
-                trackEvent(files, 'Downloaded - Whole Image High Res, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Whole Image High Res', trackingLabel);
                 break;
             case "wholeImageLowRes" :
-                trackEvent(files, 'Downloaded - Whole Image Low Res, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Whole Image Low Res', trackingLabel);
                 break;
             case "entireDocumentAsPdf" :
-                trackEvent(files, 'Downloaded - Entire Document As PDF, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Entire Document As PDF', trackingLabel);
                 break;
             case "entireDocumentAsText" :
-                trackEvent(files, 'Downloaded - Entire Document As Text, ' + trackingLabel);
+                trackEvent(files, 'Downloaded - Entire Document As Text', trackingLabel);
                 break;
         }
     });
@@ -259,9 +259,9 @@ $(function() {
 
         if (settings.pagingEnabled !== obj.pagingEnabled) {
             if (obj.pagingEnabled) {
-                trackEvent(playerInteractions, 'Two Page View', 'Opened, ' + trackingLabel);
+                trackEvent(playerInteractions, 'Two Page View Enabled', 'True, ' + trackingLabel);
             } else {
-                trackEvent(playerInteractions, 'Two Page View', 'Closed, ' + trackingLabel);
+                trackEvent(playerInteractions, 'Two Page View Enabled', 'False, ' + trackingLabel);
             }
         }
 
@@ -420,6 +420,14 @@ $(function() {
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
         //console.log('seadragonExtension.onPageSearch');
+    });
+
+    $(document).bind('seadragonExtension.onPagingToggled', function (event, obj) {
+        if (obj){
+            trackEvent(playerInteractions, 'Two page view', 'Opened, ' + trackingLabel);
+        } else {
+            trackEvent(playerInteractions, 'Two page view', 'Closed, ' + trackingLabel);
+        }
     });
 
     $(document).bind('seadragonExtension.onPrev', function (event, obj) {
