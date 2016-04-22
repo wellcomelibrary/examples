@@ -36,7 +36,7 @@ $(function() {
     });
 
     $(document).bind('uv.onCanvasIndexChanged', function (event, obj) {
-        //console.log('uv.onCanvasIndexChanged', obj);
+        trackEvent('Pages', 'Viewed', trackingLabel);
     });
 
     $(document).bind('uv.onClickthroughOccurred', function (event, obj) {
@@ -142,6 +142,10 @@ $(function() {
 
     $(document).bind('uv.onHideOverlay', function (event, obj) {
         //console.log('uv.onHideOverlay');
+    });
+
+    $(document).bind('uv.onHideRestrictedDialogue', function (event, obj) {
+        trackEvent(playerInteractions, 'Restricted file', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('uv.onHideSettingsDialogue', function (event, obj) {
@@ -316,6 +320,10 @@ $(function() {
         //console.log('uv.onShowOverlay');
     });
 
+    $(document).bind('uv.onShowRestrictedDialogue', function (event, obj) {
+        trackEvent(playerInteractions, 'Restricted file', 'Opened, ' + trackingLabel);
+    });
+
     $(document).bind('uv.onShowSettingsDialogue', function (event, obj) {
         trackEvent(playerInteractions, 'Settings', 'Opened, ' + trackingLabel);
     });
@@ -475,15 +483,15 @@ $(function() {
     });
 
     $(document).bind('mediaelementExtension.onMediaEnded', function (event, obj) {
-        trackEvent(playerInteractions, 'Ended, ' + trackingLabel);
+        trackEvent(playerInteractions, 'Ended', trackingLabel);
     });
 
     $(document).bind('mediaelementExtension.onMediaPaused', function (event, obj) {
-        trackEvent(playerInteractions, 'Pause, ' + trackingLabel);
+        trackEvent(playerInteractions, 'Pause', trackingLabel);
     });
 
     $(document).bind('mediaelementExtension.onMediaPlayed', function (event, obj) {
-        trackEvent(playerInteractions, 'Play, ' + trackingLabel);
+        trackEvent(playerInteractions, 'Play', trackingLabel);
     });
 
 });
