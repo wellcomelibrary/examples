@@ -36,7 +36,7 @@ $(function() {
     });
 
     $(document).bind('uv.onCanvasIndexChanged', function (event, obj) {
-        trackEvent('Pages', 'Viewed', trackingLabel);
+        trackEvent('Pages', 'Viewed', 'Index: ' + obj + ', ' + trackingLabel);
     });
 
     $(document).bind('uv.onClickthroughOccurred', function (event, obj) {
@@ -362,7 +362,7 @@ $(function() {
 
     $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
         trackEvent(playerInteractions, 'Thumbs', 'Opened, ' + trackingLabel);
-        trackEvent(playerInteractions, 'Tree', 'Closed, ' + trackingLabel);
+        //trackEvent(playerInteractions, 'Tree', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onCurrentViewUri', function (event, obj) {
@@ -409,13 +409,9 @@ $(function() {
         //console.log('seadragonExtension.onNextSearchResult');
     });
 
-    $(document).bind('seadragonExtension.onOpenThumbsView', function (event, obj) {
-        trackEvent(playerInteractions, 'Thumbs', 'Opened, ' + trackingLabel);
-    });
-
     $(document).bind('seadragonExtension.onOpenTreeView', function (event, obj) {
         trackEvent(playerInteractions, 'Tree', 'Opened, ' + trackingLabel);
-        trackEvent(playerInteractions, 'Thumbs', 'Closed, ' + trackingLabel);
+        //trackEvent(playerInteractions, 'Thumbs', 'Closed, ' + trackingLabel);
     });
 
     $(document).bind('seadragonExtension.onPageSearch', function (event, obj) {
